@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 // Replace this with your exact config object from the Firebase console
 const firebaseConfig = {
@@ -18,3 +19,5 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Realtime Database and export it so your other components can use it
 export const db = getDatabase(app);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();

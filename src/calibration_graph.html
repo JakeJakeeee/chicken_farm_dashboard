@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live MQ137 Calibration</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .chart-container {
+            width: 80%;
+            max-width: 1000px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 { color: #333; margin-bottom: 5px; }
+        #status { color: #888; font-size: 0.9em; margin-bottom: 10px; }
+        #averageBox {
+            background-color: #e0f7fa;
+            color: #006064;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Live MQ137 Baseline (R0) Stabilization</h2>
+    <div id="status">Connecting to API...</div>
+    
+    <div id="averageBox">Average R0: Calculating...</div>
+    
+    <div class="chart-container">
+        <canvas id="calibrationChart"></canvas>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const API_URL = "http://localhost:1880/api/history"; 
+        const REFRESH_RATE_MS = 10000; 
+
+        // --- 2. INITIALIZE EMPTY CHART ---
+        const ctx = document.getElementById('calibrationChart').getContext('2d');
+        const r0Chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], 
+                datasets: [{
+                    label: 'Clean Air Baseline (R0)',
+                    data: [], 
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    pointRadius: 3,
+                    fill: true,
+                    tension: 0.3 
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: { duration: 500 }, 
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { 
+                        title: { display: true, text: 'R0 Value' },
+                        suggestedMin: 1.0, 
+                        suggestedMax: 1.5 
+                    }
+                }
+            }
+        });
+
+        // --- 3. FETCH AND UPDATE LOGIC ---
+        async function fetchRealTimeData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const rawData = await response.json();
+
+                const timeLabels = rawData.map(entry => {
+                    return entry.timestamp ? entry.timestamp.split(', ')[1] : 'N/A';
+                });
+                const r0Values = rawData.map(entry => entry.calibration_r0);
+
+                // --- NEW CODE: Calculate the Average ---
+                if (r0Values.length > 0) {
+                    // Add all numbers together, starting from 0
+                    const sum = r0Values.reduce((total, current) => total + current, 0);
+                    // Divide by the amount of numbers in the array
+                    const average = sum / r0Values.length;
+                    
+                    // Display the result rounded to 2 decimal places
+                    document.getElementById('averageBox').innerText = `Average R0: ${average.toFixed(2)}`;
+                    
+                    // Dynamically adjust the Y-axis
+                    const minR0 = Math.min(...r0Values);
+                    const maxR0 = Math.max(...r0Values);
+                    r0Chart.options.scales.y.suggestedMin = minR0 - 0.05;
+                    r0Chart.options.scales.y.suggestedMax = maxR0 + 0.05;
+                }
+
+                r0Chart.data.labels = timeLabels;
+                r0Chart.data.datasets[0].data = r0Values;
+                r0Chart.update();
+
+                document.getElementById('status').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error("Error fetching calibration data:", error);
+                document.getElementById('status').innerText = `Error connecting to API. Retrying...`;
+            }
+        }
+
+        // --- 4. START THE LOOP ---
+        fetchRealTimeData(); 
+        setInterval(fetchRealTimeData, REFRESH_RATE_MS); 
+
+    </script>
+</body>
+</html>
