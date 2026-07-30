@@ -62,7 +62,7 @@ export default function SensorCard({ title, value, unit, min, max, thresholds, s
               startAngle={180} 
               endAngle={0} 
               innerRadius={52}  
-              outerRadius={78}  
+              outerRadius={75}  
               dataKey="value" 
               stroke="none" 
               isAnimationActive={false} // Leave False. It prevents freezing on fast data updates.

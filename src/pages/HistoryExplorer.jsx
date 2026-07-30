@@ -18,6 +18,29 @@ function HistoryExplorer() {
     fs_air_velocity: true
   });
 
+  // THE TIMEZONE FIX: Safely translate "14/07/2026, 10:20:01 PM" into perfect local milliseconds
+  const parseNodeRedDate = (dateString) => {
+    if (!dateString) return 0;
+    try {
+      const [datePart, timePart] = dateString.split(', ');
+      const [day, month, year] = datePart.split('/');
+      const [time, meridian] = timePart.split(' ');
+      let [hours, minutes, seconds] = time.split(':');
+      
+      hours = parseInt(hours, 10);
+      if (meridian === 'PM' && hours < 12) hours += 12;
+      if (meridian === 'AM' && hours === 12) hours = 0;
+      
+      const formattedHours = hours.toString().padStart(2, '0');
+      
+      // Standardize into ISO 8601 so JS parses it flawlessly in your local timezone
+      const isoString = `${year}-${month}-${day}T${formattedHours}:${minutes}:${seconds}`;
+      return new Date(isoString).getTime();
+    } catch (error) {
+      return 0; // Fallback to avoid breaking the app
+    }
+  };
+
   const fetchCustomHistory = async () => {
     if (!startDate || !endDate) {
       alert("Please select both a Start and End date/time.");
@@ -25,15 +48,18 @@ function HistoryExplorer() {
     }
     
     setIsFetching(true);
+    
     const startMillis = new Date(startDate).getTime();
-    const endMillis = new Date(endDate).getTime();
+    
+    // THE 59-SECOND FIX: Append 59,999 milliseconds to the end date so the filter 
+    // captures every single second within the final minute you selected.
+    const endMillis = new Date(endDate).getTime() + 59999; 
 
     try {
       const response = await fetch('http://localhost:1880/api/history');
       const sqlData = await response.json();
 
       if (sqlData && sqlData.length > 0) {
-        // Map the new status columns from the SQLite database
         const formattedArray = sqlData.map((item) => ({
           ...item,
           sht_temperature: item.sht_temperature || 0,
@@ -54,8 +80,9 @@ function HistoryExplorer() {
         }));
 
         const filteredData = formattedArray.filter(row => {
-          const rowTime = new Date(row.timestamp).getTime();
-          return rowTime >= startMillis && rowTime <= endMillis;
+          // Send the raw text string into our custom parser instead of using the broken ESP32 offset
+          const exactLocalMillis = parseNodeRedDate(row.timestamp);
+          return exactLocalMillis >= startMillis && exactLocalMillis <= endMillis;
         });
 
         if (filteredData.length > 0) {
@@ -96,7 +123,7 @@ function HistoryExplorer() {
 
     const csvRows = [...pulledHistory].reverse().map(row => {
       const rowData = [`"${row.timestamp || row.time}"`]; 
-      // If a sensor is broken, export "Offline" instead of 0 to protect Excel averages
+      
       if (sensorToggles.sht_temperature) rowData.push(row.sht_status === 0 ? 'Offline' : row.sht_temperature);
       if (sensorToggles.bmp_temperature) rowData.push(row.bmp_status === 0 ? 'Offline' : row.bmp_temperature);
       if (sensorToggles.scd_temperature) rowData.push(row.scd_status === 0 ? 'Offline' : row.scd_temperature);
@@ -214,7 +241,6 @@ function HistoryExplorer() {
                   <tr key={index} style={{ borderBottom: '1px solid #ecf0f1' }}>
                     <td style={{ fontWeight: 'bold', color: '#2c3e50', padding: '10px' }}>{row.timestamp || row.time}</td>
                     
-                    {/* Conditional Rendering logic for every cell based on its respective status flag */}
                     {sensorToggles.sht_temperature && (
                       <td style={{ color: row.sht_status === 0 ? '#e74c3c' : 'inherit', padding: '10px' }}>
                         {row.sht_status === 1 ? row.sht_temperature : '⚠️ Offline'}
@@ -240,8 +266,6 @@ function HistoryExplorer() {
                         {row.scd_status === 1 ? row.scd_humidity : '⚠️ Offline'}
                       </td>
                     )}
-                    
-                    {/* For CO2 and Ammonia, combine the Offline check with your custom High-Limit color checks */}
                     {sensorToggles.scd_co2 && (
                       <td style={{ color: row.scd_status === 0 ? '#e74c3c' : (row.scd_co2 > 1000 ? '#e74c3c' : 'inherit'), padding: '10px' }}>
                         {row.scd_status === 1 ? row.scd_co2 : '⚠️ Offline'}
@@ -252,7 +276,6 @@ function HistoryExplorer() {
                         {row.mq_status === 1 ? row.mq137_ammonia : '⚠️ Offline'}
                       </td>
                     )}
-                    
                     {sensorToggles.bmp_pressure && (
                       <td style={{ color: row.bmp_status === 0 ? '#e74c3c' : 'inherit', padding: '10px' }}>
                         {row.bmp_status === 1 ? row.bmp_pressure : '⚠️ Offline'}

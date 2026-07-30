@@ -25,7 +25,8 @@ const CHART_WIDGETS = {
   pressure: { title: 'Air Pressure (hPa)', lines: [{ key: 'bmp_pressure', color: '#34495e', name: 'Pressure' }] }
 };
 
-export default function LiveDashboard({ latestData, dataHistory, alerts, setAlerts }) {
+// 👇 1. Updated the props here to use unreadAlerts and onClearNotifications
+export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, onClearNotifications }) {
   const [isCustomizing, setIsCustomizing] = useState(false);
 
   // MATRIX DRAG REFS
@@ -139,11 +140,20 @@ export default function LiveDashboard({ latestData, dataHistory, alerts, setAler
 
   return (
     <div className="dashboard-container" style={{ padding: '20px', backgroundColor: '#f8f9fa' }}>
-      <Header title="Live Telemetry" subtitle="Master Node 01 | Putrajaya Farm" alerts={alerts} setAlerts={setAlerts} actionButton={
-        <button onClick={() => setIsCustomizing(!isCustomizing)} style={{ backgroundColor: isCustomizing ? '#e74c3c' : '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-          {isCustomizing ? '❌ Lock Layout' : '⚙️ Customize Dashboard'}
-        </button>
-      } />
+      
+      {/* 👇 2. Updated the Header component to pass the new props and enable the bell! */}
+      <Header 
+        title="Live Telemetry" 
+        subtitle="Farm data" 
+        alerts={unreadAlerts} 
+        onClearNotifications={onClearNotifications} 
+        showBell={true} 
+        actionButton={
+          <button onClick={() => setIsCustomizing(!isCustomizing)} style={{ backgroundColor: isCustomizing ? '#e74c3c' : '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+            {isCustomizing ? '❌ Lock Layout' : '⚙️ Customize Dashboard'}
+          </button>
+        } 
+      />
 
       <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
         <div style={{ flex: 1, background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', padding: '15px', borderRadius: '8px', color: '#b71540', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
@@ -187,13 +197,12 @@ export default function LiveDashboard({ latestData, dataHistory, alerts, setAler
       )}
 
       <h3 style={{ color: '#2c3e50', marginBottom: '15px', fontSize: '1.2rem' }}>Sensor Telemetry Blocks</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '15px', marginBottom: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
         {gaugeSlots.map((gaugeKey, index) => {
           if (gaugeKey) {
             if (!dashboardLayout[`gauge_${gaugeKey}`]) return null;
             const config = GAUGE_CONFIG[gaugeKey];
             
-            // NUCLEAR FIX: Overflow hidden and strict dimensions for the block
             return (
               <div key={gaugeKey}
                 draggable={isCustomizing}
@@ -207,7 +216,7 @@ export default function LiveDashboard({ latestData, dataHistory, alerts, setAler
                   borderRadius: '10px', padding: '15px 10px', display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', height: '170px', cursor: isCustomizing ? 'grab' : 'default',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.02)', boxSizing: 'border-box',
-                  minWidth: 0, minHeight: 0, overflow: 'hidden' // <-- PREVENTS RESIZE LOOP
+                  minWidth: 0, minHeight: 0, overflow: 'hidden'
                 }}
               >
                 <SensorCard title={config.title} value={latestData?.[config.key]} unit={config.unit} min={config.min} max={config.max} thresholds={config.thresholds} status={latestData?.[config.statusKey]} isCustomizing={isCustomizing} />
@@ -240,7 +249,6 @@ export default function LiveDashboard({ latestData, dataHistory, alerts, setAler
           const config = CHART_WIDGETS[chartKey];
           if (!dashboardLayout[`chart_${chartKey}`]) return null;
 
-          // NUCLEAR FIX: overflow: 'hidden', minWidth: 0, minHeight: 0 applied to all wrappers
           return (
             <div key={chartKey}
               draggable={isCustomizing}
@@ -254,7 +262,7 @@ export default function LiveDashboard({ latestData, dataHistory, alerts, setAler
                 boxShadow: '0 4px 8px rgba(0,0,0,0.04)', height: '340px',
                 border: isCustomizing ? '2px dashed #e67e22' : '1px solid #e2e8f0',
                 cursor: isCustomizing ? 'grab' : 'default', display: 'flex', flexDirection: 'column',
-                minWidth: 0, minHeight: 0, overflow: 'hidden' // <-- PREVENTS RESIZE LOOP
+                minWidth: 0, minHeight: 0, overflow: 'hidden'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -262,16 +270,11 @@ export default function LiveDashboard({ latestData, dataHistory, alerts, setAler
                 {isCustomizing && <span style={{ color: '#e67e22', fontWeight: 'bold', fontSize: '0.9rem' }}>⠿ Drag Chart</span>}
               </div>
               <div style={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', overflow: 'hidden' }}>
-                {/* 99% Hack eliminates float-pixel rounding loops */}
                 <ResponsiveContainer width="99%" height="99%">
                   <LineChart data={dataHistory}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    
-                    {/* Domain Prop REMOVED to prevent divide-by-zero flatline crashes */}
                     <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    
-                    {/* Tooltip animation Disabled */}
                     <Tooltip isAnimationActive={false} />
                     <Legend wrapperStyle={{ fontSize: '12px', marginTop: '5px' }} />
                     {config.lines.map((line) => <Line key={line.key} type="monotone" dataKey={line.key} stroke={line.color} name={line.name} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />)}
