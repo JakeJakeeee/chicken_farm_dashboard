@@ -51,8 +51,7 @@ function HistoryExplorer() {
     
     const startMillis = new Date(startDate).getTime();
     
-    // THE 59-SECOND FIX: Append 59,999 milliseconds to the end date so the filter 
-    // captures every single second within the final minute you selected.
+    // THE 59-SECOND FIX: Append 59,999 milliseconds to the end date 
     const endMillis = new Date(endDate).getTime() + 59999; 
 
     try {
@@ -76,13 +75,15 @@ function HistoryExplorer() {
           scd_status: item.scd_status !== undefined ? item.scd_status : 1,
           mq_status: item.mq_status !== undefined ? item.mq_status : 1,
           fs_status: item.fs_status !== undefined ? item.fs_status : 1,
+          
+          // THE FIX: Pull the pure millisecond number directly from the database!
+          timestamp_ms: item.timestamp_ms || 0, 
           time: item.timestamp ? item.timestamp.split(', ')[1] : '' 
         }));
 
         const filteredData = formattedArray.filter(row => {
-          // Send the raw text string into our custom parser instead of using the broken ESP32 offset
-          const exactLocalMillis = parseNodeRedDate(row.timestamp);
-          return exactLocalMillis >= startMillis && exactLocalMillis <= endMillis;
+          // THE FIX: Compare the raw numbers natively. No text parsing required!
+          return row.timestamp_ms >= startMillis && row.timestamp_ms <= endMillis;
         });
 
         if (filteredData.length > 0) {
@@ -154,7 +155,7 @@ function HistoryExplorer() {
     <div className="explorer-container">
       <div className="header">
         <h1>History Explorer</h1>
-        <p>Custom Data Retrieval & Analysis (Local SQL)</p>
+        <p>Retrieve history data</p>
       </div>
 
       <div className="control-panel">
@@ -294,7 +295,7 @@ function HistoryExplorer() {
         </>
       ) : (
         <div className="empty-state">
-          <p>Select a time range and click Fetch Data to see historical trends and raw logs.</p>
+          <p>Select a time range and click fetch data to see history data.</p>
         </div>
       )}
     </div>

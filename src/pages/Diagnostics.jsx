@@ -5,8 +5,8 @@ export default function Diagnostics({ latestData, alerts, setAlerts }) {
   return (
     <div className="diagnostics-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <Header 
-        title="System Diagnostics" 
-        subtitle="Master Node 01 | Putrajaya Farm" 
+        title="Hardware Status" 
+        //subtitle="..." 
         alerts={alerts} 
         setAlerts={setAlerts} 
       />
@@ -15,11 +15,10 @@ export default function Diagnostics({ latestData, alerts, setAlerts }) {
         <h2 style={{ borderBottom: '2px solid #ecf0f1', paddingBottom: '10px', marginTop: 0 }}>System Architecture</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '15px' }}>
           <div><strong>Controller:</strong> LilyGO T-A7670G R2 (ESP32)</div>
-          <div><strong>Network:</strong> 4G LTE CAT1 (MQTT via Shiftr.io)</div>
+          <div><strong>Network:</strong> 4G LTE (xox)</div>
           <div><strong>RTOS Core 0:</strong> Network & MQTT Publishing Task</div>
-          <div><strong>RTOS Core 1:</strong> Staggered I2C Sensor Acquisition Task</div>
-          <div><strong>Last Cloud Sync:</strong> {latestData?.time || 'Pending...'}</div>
-          <div><strong>Brownout Bypass:</strong> Enabled (RTC_CNTL_REG)</div>
+          <div><strong>RTOS Core 1:</strong> Sensor Task</div>
+          <div><strong>Last Sync:</strong> {latestData?.time || 'Pending...'}</div>
         </div>
       </div>
 

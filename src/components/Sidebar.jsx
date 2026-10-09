@@ -14,7 +14,7 @@ export default function Sidebar({ activeTab, setActiveTab, handleLogout }) {
           📊 History Explorer
         </button>
         <button className={`menu-btn ${activeTab === 'diagnostics' ? 'active' : ''}`} onClick={() => setActiveTab('diagnostics')}>
-          🩺 Hardware Diagnostics
+          🛠️ Hardware Status
         </button>
         {/* NEW ALERTS TAB */}
         <button className={`menu-btn ${activeTab === 'alerts' ? 'active' : ''}`} onClick={() => setActiveTab('alerts')}>

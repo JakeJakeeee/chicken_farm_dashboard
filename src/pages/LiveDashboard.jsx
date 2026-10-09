@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SensorCard from '../components/SensorCard';
 import Header from '../components/Header';
@@ -12,7 +12,7 @@ const GAUGE_CONFIG = {
   scd_hum: { title: 'SCD41 Hum', key: 'scd_humidity', unit: '%', min: 0, max: 100, thresholds: { warning: 65, danger: 80 }, statusKey: 'scd_status' },
   ammonia: { title: 'Ammonia (NH3)', key: 'mq137_ammonia', unit: 'ppm', min: 0, max: 30, thresholds: { warning: 10, danger: 20 }, statusKey: 'mq_status' },
   co2: { title: 'Carbon Dioxide', key: 'scd_co2', unit: 'ppm', min: 400, max: 5000, thresholds: { warning: 1500, danger: 3000 }, statusKey: 'scd_status' },
-  pressure: { title: 'Air Pressure', key: 'bmp_pressure', unit: 'hPa', min: 900, max: 1100, thresholds: null, statusKey: 'bmp_status' },
+  pressure: { title: 'Air Pressure', key: 'bmp_pressure', unit: 'hPa', min: 700, max: 1100, thresholds: null, statusKey: 'bmp_status' },
   airflow: { title: 'Air Velocity', key: 'fs_air_velocity', unit: 'm/s', min: 0, max: 7.5, thresholds: null, statusKey: 'fs_status' }
 };
 
@@ -25,8 +25,7 @@ const CHART_WIDGETS = {
   pressure: { title: 'Air Pressure (hPa)', lines: [{ key: 'bmp_pressure', color: '#34495e', name: 'Pressure' }] }
 };
 
-// 👇 1. Updated the props here to use unreadAlerts and onClearNotifications
-export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, onClearNotifications }) {
+export default function LiveDashboard({ latestData, dataHistory }) {
   const [isCustomizing, setIsCustomizing] = useState(false);
 
   // MATRIX DRAG REFS
@@ -38,7 +37,7 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
 
   // VISIBILITY LAYOUTS
   const [dashboardLayout, setDashboardLayout] = useState(() => {
-    const saved = localStorage.getItem('farmDashboardLayoutV3');
+    const saved = localStorage.getItem('farmDashboardLayoutV6');
     return saved ? JSON.parse(saved) : {
       gauge_sht_temp: true, gauge_bmp_temp: true, gauge_scd_temp: true,
       gauge_sht_hum: true, gauge_scd_hum: true, gauge_ammonia: true,
@@ -49,7 +48,7 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
   });
 
   const [gaugeSlots, setGaugeSlots] = useState(() => {
-    const saved = localStorage.getItem('farmGaugeMatrixSlotsV3');
+    const saved = localStorage.getItem('farmGaugeMatrixSlotsV6');
     return saved ? JSON.parse(saved) : [
       'sht_hum', 'sht_temp', 'scd_temp', 'co2', 'bmp_temp', 'scd_hum', 'ammonia', 
       'airflow', 'pressure', null, null, null, null, null                       
@@ -57,15 +56,29 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
   });
 
   const [chartOrder, setChartOrder] = useState(() => {
-    const saved = localStorage.getItem('farmChartOrderMatrixV3');
+    const saved = localStorage.getItem('farmChartOrderMatrixV6');
     return saved ? JSON.parse(saved) : Object.keys(CHART_WIDGETS);
   });
 
+  const [hiddenLines, setHiddenLines] = useState(() => {
+    const saved = localStorage.getItem('farmHiddenChartLinesV2');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   useEffect(() => {
-    localStorage.setItem('farmDashboardLayoutV3', JSON.stringify(dashboardLayout));
-    localStorage.setItem('farmGaugeMatrixSlotsV3', JSON.stringify(gaugeSlots));
-    localStorage.setItem('farmChartOrderMatrixV3', JSON.stringify(chartOrder));
-  }, [dashboardLayout, gaugeSlots, chartOrder]);
+    localStorage.setItem('farmDashboardLayoutV6', JSON.stringify(dashboardLayout));
+    localStorage.setItem('farmGaugeMatrixSlotsV6', JSON.stringify(gaugeSlots));
+    localStorage.setItem('farmChartOrderMatrixV6', JSON.stringify(chartOrder));
+    localStorage.setItem('farmHiddenChartLinesV2', JSON.stringify(hiddenLines)); 
+  }, [dashboardLayout, gaugeSlots, chartOrder, hiddenLines]);
+
+  const handleLegendClick = (e) => {
+    if (!isCustomizing) return; 
+    setHiddenLines(prev => ({
+      ...prev,
+      [e.dataKey]: !prev[e.dataKey]
+    }));
+  };
 
   const dragGaugeStart = (e, position) => { 
     dragType.current = 'gauge';
@@ -127,27 +140,13 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
 
   const handleLayoutToggle = (key) => setDashboardLayout(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const quickStats = useMemo(() => {
-    if (!dataHistory || dataHistory.length === 0) return { maxT: '0.00', minT: '0.00', avgAir: '0.00' };
-    const temps = dataHistory.map(d => d.sht_temperature).filter(t => t > 0);
-    const airflows = dataHistory.map(d => d.fs_air_velocity);
-    return {
-      maxT: temps.length ? Math.max(...temps).toFixed(2) : '0.00',
-      minT: temps.length ? Math.min(...temps).toFixed(2) : '0.00',
-      avgAir: airflows.length ? (airflows.reduce((a, b) => a + b, 0) / airflows.length).toFixed(2) : '0.00'
-    };
-  }, [dataHistory]);
-
   return (
     <div className="dashboard-container" style={{ padding: '20px', backgroundColor: '#f8f9fa' }}>
       
-      {/* 👇 2. Updated the Header component to pass the new props and enable the bell! */}
       <Header 
         title="Live Telemetry" 
         subtitle="Farm data" 
-        alerts={unreadAlerts} 
-        onClearNotifications={onClearNotifications} 
-        showBell={true} 
+        showBell={false} 
         actionButton={
           <button onClick={() => setIsCustomizing(!isCustomizing)} style={{ backgroundColor: isCustomizing ? '#e74c3c' : '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
             {isCustomizing ? '❌ Lock Layout' : '⚙️ Customize Dashboard'}
@@ -155,24 +154,13 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
         } 
       />
 
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
-        <div style={{ flex: 1, background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', padding: '15px', borderRadius: '8px', color: '#b71540', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-          <span>Recent Peak Temp:</span> <span>{quickStats.maxT} °C</span>
-        </div>
-        <div style={{ flex: 1, background: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)', padding: '15px', borderRadius: '8px', color: '#0c2461', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-          <span>Recent Lowest Temp:</span> <span>{quickStats.minT} °C</span>
-        </div>
-        <div style={{ flex: 1, background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)', padding: '15px', borderRadius: '8px', color: '#006266', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-          <span>Average Airflow:</span> <span>{quickStats.avgAir} m/s</span>
-        </div>
-      </div>
-
       {isCustomizing && (
         <div style={{ background: '#ecf0f1', padding: '20px', borderRadius: '10px', marginBottom: '25px', border: '1px solid #bdc3c7' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+            
             <div>
               <h4 style={{ margin: '0 0 12px 0', color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '5px' }}>Toggle Gauge Blocks:</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {Object.keys(GAUGE_CONFIG).map((key) => (
                   <label key={key} style={{ background: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '0.9rem' }}>
                     <input type="checkbox" checked={dashboardLayout[`gauge_${key}`]} onChange={() => handleLayoutToggle(`gauge_${key}`)} style={{ marginRight: '8px' }} />
@@ -181,9 +169,10 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
                 ))}
               </div>
             </div>
+
             <div>
               <h4 style={{ margin: '0 0 12px 0', color: '#2c3e50', borderBottom: '2px solid #e67e22', paddingBottom: '5px' }}>Toggle Historical Charts:</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {Object.keys(CHART_WIDGETS).map((key) => (
                   <label key={key} style={{ background: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '0.9rem' }}>
                     <input type="checkbox" checked={dashboardLayout[`chart_${key}`]} onChange={() => handleLayoutToggle(`chart_${key}`)} style={{ marginRight: '8px' }} />
@@ -192,6 +181,7 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
                 ))}
               </div>
             </div>
+            
           </div>
         </div>
       )}
@@ -200,8 +190,9 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
         {gaugeSlots.map((gaugeKey, index) => {
           if (gaugeKey) {
-            if (!dashboardLayout[`gauge_${gaugeKey}`]) return null;
             const config = GAUGE_CONFIG[gaugeKey];
+            if (!config) return null; 
+            if (!dashboardLayout[`gauge_${gaugeKey}`]) return null;
             
             return (
               <div key={gaugeKey}
@@ -247,7 +238,11 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
         {chartOrder.map((chartKey, index) => {
           const config = CHART_WIDGETS[chartKey];
+          if (!config) return null;
           if (!dashboardLayout[`chart_${chartKey}`]) return null;
+
+          //Only 'temp' and 'hum' charts are toggleable
+          const isToggleable = chartKey === 'temp' || chartKey === 'hum';
 
           return (
             <div key={chartKey}
@@ -276,8 +271,45 @@ export default function LiveDashboard({ latestData, dataHistory, unreadAlerts, o
                     <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <Tooltip isAnimationActive={false} />
-                    <Legend wrapperStyle={{ fontSize: '12px', marginTop: '5px' }} />
-                    {config.lines.map((line) => <Line key={line.key} type="monotone" dataKey={line.key} stroke={line.color} name={line.name} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />)}
+                    
+                    <Legend 
+                      wrapperStyle={{ 
+                        fontSize: '12px', 
+                        marginTop: '5px', 
+                        cursor: (isCustomizing && isToggleable) ? 'pointer' : 'default', 
+                        userSelect: 'none' 
+                      }} 
+                      onClick={(e) => {
+                        if (isToggleable) handleLegendClick(e);
+                      }}
+                      formatter={(value, entry) => {
+                        const isHidden = hiddenLines[entry.dataKey];
+                        const showCheckbox = isCustomizing && isToggleable;
+                        return (
+                          <span style={{ 
+                            color: isHidden ? '#94a3b8' : '#334155', 
+                            fontWeight: isHidden ? 'normal' : '500',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            {showCheckbox ? (isHidden ? '☐ ' : '☑ ') : ''}{value}
+                          </span>
+                        );
+                      }}
+                    />
+                    
+                    {config.lines.map((line) => (
+                      <Line 
+                        key={line.key} 
+                        type="monotone" 
+                        dataKey={line.key} 
+                        stroke={line.color} 
+                        name={line.name} 
+                        strokeWidth={2.5} 
+                        dot={{ r: 3 }} 
+                        isAnimationActive={false} 
+                        hide={hiddenLines[line.key] === true} 
+                      />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               </div>

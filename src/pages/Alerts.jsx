@@ -7,8 +7,8 @@ export default function Alerts({ alerts, unreadAlerts, onClearNotifications }) {
     <div className="alerts-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       <Header 
-        title="System Alerts & Audit Log" 
-        subtitle="Master Node 01 | Putrajaya Farm" 
+        title="System Alerts & Logs" 
+        //subtitle=".." 
         alerts={unreadAlerts} // 👈 Header only gets unread notifications!
         onClearNotifications={onClearNotifications} // 👈 Pass the clear function!
       />

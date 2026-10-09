@@ -17,27 +17,9 @@ function App() {
   
   const [dataHistory, setDataHistory] = useState([]);
   const [latestData, setLatestData] = useState(null);
+  
+  // Kept: The main state to hold all alerts for the System Alerts page
   const [alerts, setAlerts] = useState([]);
-
-  // 👇 1. NEW: Memory for alerts you have already "cleared/read"
-  const [clearedAlertIds, setClearedAlertIds] = useState(() => {
-    const saved = localStorage.getItem('farmClearedAlerts');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // 👇 2. NEW: Save cleared alerts to browser memory
-  useEffect(() => {
-    localStorage.setItem('farmClearedAlerts', JSON.stringify(clearedAlertIds));
-  }, [clearedAlertIds]);
-
-  // 👇 3. NEW: Function to Mark All As Read
-  const handleClearNotifications = () => {
-    const currentIds = alerts.map(a => a.id); // Get IDs of all current alerts
-    setClearedAlertIds(currentIds); // Mark them all as read!
-  };
-
-  // 👇 4. NEW: Create a filtered list for the notification bell
-  const unreadAlerts = alerts.filter(alert => !clearedAlertIds.includes(alert.id));
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -74,6 +56,7 @@ function App() {
           setDataHistory(formattedArray);
         }
 
+        // Kept: Fetching the alert history from your database
         const alertsRes = await fetch('http://localhost:1880/api/alerts');
         const alertsData = await alertsRes.json();
         
@@ -112,11 +95,13 @@ function App() {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={handleLogout} />
 
       <div className="main-content" style={{ position: 'relative' }}>
-        {/* 👇 5. Pass BOTH the full list and the unread list to your pages */}
-        {activeTab === 'live' && <LiveDashboard latestData={latestData} dataHistory={dataHistory} unreadAlerts={unreadAlerts} onClearNotifications={handleClearNotifications} />}
+        {/* Removed alert props from Dashboard and Diagnostics */}
+        {activeTab === 'live' && <LiveDashboard latestData={latestData} dataHistory={dataHistory} />}
         {activeTab === 'explorer' && <HistoryExplorer />} 
-        {activeTab === 'diagnostics' && <Diagnostics latestData={latestData} unreadAlerts={unreadAlerts} onClearNotifications={handleClearNotifications} />}
-        {activeTab === 'alerts' && <Alerts alerts={alerts} unreadAlerts={unreadAlerts} onClearNotifications={handleClearNotifications} />}
+        {activeTab === 'diagnostics' && <Diagnostics latestData={latestData} />}
+        
+        {/* Kept: Passing the full alerts list to the Alerts page */}
+        {activeTab === 'alerts' && <Alerts alerts={alerts} />}
       </div>
     </div>
   );
