@@ -1,17 +1,13 @@
 import React from 'react';
 import Header from '../components/Header';
 
-// 👇 Note the new props!
-export default function Alerts({ alerts, unreadAlerts, onClearNotifications }) {
+
+export default function Alerts({ alerts }) {
   return (
     <div className="alerts-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      <Header 
-        title="System Alerts & Logs" 
-        //subtitle=".." 
-        alerts={unreadAlerts} // 👈 Header only gets unread notifications!
-        onClearNotifications={onClearNotifications} // 👈 Pass the clear function!
-      />
+      {/* 👇 2. Removed the extra props from the Header */}
+      <Header title="System Alerts & Logs" />
 
       <div style={{ background: 'white', padding: '25px', borderRadius: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
         
@@ -19,10 +15,9 @@ export default function Alerts({ alerts, unreadAlerts, onClearNotifications }) {
           <h2 style={{ margin: 0, color: '#2c3e50' }}>Permanent Incident History</h2>
         </div>
 
-        {/* 👇 The main page still maps the FULL 'alerts' array! */}
         {alerts.length === 0 ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', background: '#f8f9fa', borderRadius: '8px', border: '1px dashed #bdc3c7' }}>
-            <span style={{ fontSize: '3rem' }}>🛡️</span>
+            <span style={{ fontSize: '3rem' }}></span>
             <h3 style={{ color: '#2c3e50', marginTop: '10px' }}>No Active Alerts</h3>
             <p style={{ color: '#7f8c8d' }}>The system is currently stable.</p>
           </div>

@@ -15,10 +15,9 @@ function HistoryExplorer() {
     scd_co2: true,
     mq137_ammonia: true,
     bmp_pressure: false,
-    fs_air_velocity: true
+    fs_airflow: true
   });
 
-  // THE TIMEZONE FIX: Safely translate "14/07/2026, 10:20:01 PM" into perfect local milliseconds
   const parseNodeRedDate = (dateString) => {
     if (!dateString) return 0;
     try {
@@ -37,7 +36,7 @@ function HistoryExplorer() {
       const isoString = `${year}-${month}-${day}T${formattedHours}:${minutes}:${seconds}`;
       return new Date(isoString).getTime();
     } catch (error) {
-      return 0; // Fallback to avoid breaking the app
+      return 0;
     }
   };
 
@@ -69,7 +68,7 @@ function HistoryExplorer() {
           scd_co2: item.scd_co2 || 0,
           mq137_ammonia: item.mq137_ammonia || 0,
           bmp_pressure: item.bmp_pressure || 0,
-          fs_air_velocity: item.airflow || 0, 
+          fs_airflow: item.airflow || 0, 
           sht_status: item.sht_status !== undefined ? item.sht_status : 1,
           bmp_status: item.bmp_status !== undefined ? item.bmp_status : 1,
           scd_status: item.scd_status !== undefined ? item.scd_status : 1,
@@ -120,7 +119,7 @@ function HistoryExplorer() {
     if (sensorToggles.scd_co2) headers.push('CO2 (ppm)');
     if (sensorToggles.mq137_ammonia) headers.push('Ammonia (ppm)');
     if (sensorToggles.bmp_pressure) headers.push('Pressure (hPa)');
-    if (sensorToggles.fs_air_velocity) headers.push('Air Velocity (m/s)');
+    if (sensorToggles.fs_airflow) headers.push('Air Velocity (m/s)');
 
     const csvRows = [...pulledHistory].reverse().map(row => {
       const rowData = [`"${row.timestamp || row.time}"`]; 
@@ -133,7 +132,7 @@ function HistoryExplorer() {
       if (sensorToggles.scd_co2) rowData.push(row.scd_status === 0 ? 'Offline' : row.scd_co2);
       if (sensorToggles.mq137_ammonia) rowData.push(row.mq_status === 0 ? 'Offline' : row.mq137_ammonia);
       if (sensorToggles.bmp_pressure) rowData.push(row.bmp_status === 0 ? 'Offline' : row.bmp_pressure);
-      if (sensorToggles.fs_air_velocity) rowData.push(row.fs_status === 0 ? 'Offline' : row.fs_air_velocity);
+      if (sensorToggles.fs_airflow) rowData.push(row.fs_status === 0 ? 'Offline' : row.fs_airflow);
       return rowData.join(',');
     });
 
@@ -182,7 +181,7 @@ function HistoryExplorer() {
           <label className="toggle-label"><input type="checkbox" checked={sensorToggles.scd_co2} onChange={() => handleToggle('scd_co2')} /> CO2</label>
           <label className="toggle-label"><input type="checkbox" checked={sensorToggles.mq137_ammonia} onChange={() => handleToggle('mq137_ammonia')} /> Ammonia</label>
           <label className="toggle-label"><input type="checkbox" checked={sensorToggles.bmp_pressure} onChange={() => handleToggle('bmp_pressure')} /> Pressure</label>
-          <label className="toggle-label"><input type="checkbox" checked={sensorToggles.fs_air_velocity} onChange={() => handleToggle('fs_air_velocity')} /> Air Velocity</label>
+          <label className="toggle-label"><input type="checkbox" checked={sensorToggles.fs_airflow} onChange={() => handleToggle('fs_airflow')} /> Air Velocity</label>
         </div>
       </div>
 
@@ -206,7 +205,7 @@ function HistoryExplorer() {
                 {sensorToggles.scd_co2 && <Line yAxisId="right" type="monotone" dataKey="scd_co2" stroke="#2ecc71" name="CO2" dot={false} />}
                 {sensorToggles.mq137_ammonia && <Line yAxisId="right" type="monotone" dataKey="mq137_ammonia" stroke="#9b59b6" name="Ammonia" dot={false} />}
                 {sensorToggles.bmp_pressure && <Line yAxisId="left" type="monotone" dataKey="bmp_pressure" stroke="#34495e" name="Pressure" dot={false} />}
-                {sensorToggles.fs_air_velocity && <Line yAxisId="left" type="monotone" dataKey="fs_air_velocity" stroke="#16a085" name="Air Velocity" dot={false} />}
+                {sensorToggles.fs_airflow && <Line yAxisId="left" type="monotone" dataKey="fs_airflow" stroke="#16a085" name="Air Velocity" dot={false} />}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -234,7 +233,7 @@ function HistoryExplorer() {
                   {sensorToggles.scd_co2 && <th style={{ padding: '10px' }}>CO2 (ppm)</th>}
                   {sensorToggles.mq137_ammonia && <th style={{ padding: '10px' }}>Ammonia (ppm)</th>}
                   {sensorToggles.bmp_pressure && <th style={{ padding: '10px' }}>Pressure (hPa)</th>}
-                  {sensorToggles.fs_air_velocity && <th style={{ padding: '10px' }}>Air Velocity (m/s)</th>}
+                  {sensorToggles.fs_airflow && <th style={{ padding: '10px' }}>Air Velocity (m/s)</th>}
                 </tr>
               </thead>
               <tbody>
@@ -282,9 +281,9 @@ function HistoryExplorer() {
                         {row.bmp_status === 1 ? row.bmp_pressure : '⚠️ Offline'}
                       </td>
                     )}
-                    {sensorToggles.fs_air_velocity && (
+                    {sensorToggles.fs_airflow && (
                       <td style={{ color: row.fs_status === 0 ? '#e74c3c' : 'inherit', padding: '10px' }}>
-                        {row.fs_status === 1 ? row.fs_air_velocity : '⚠️ Offline'}
+                        {row.fs_status === 1 ? row.fs_airflow : '⚠️ Offline'}
                       </td>
                     )}
                   </tr>

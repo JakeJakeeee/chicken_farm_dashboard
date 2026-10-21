@@ -3,7 +3,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import SensorCard from '../components/SensorCard';
 import Header from '../components/Header';
 
-// CONFIGURATIONS
 const GAUGE_CONFIG = {
   sht_temp: { title: 'SHT31 Temp', key: 'sht_temperature', unit: '°C', min: 0, max: 50, thresholds: { warning: 28, danger: 35 }, statusKey: 'sht_status' },
   bmp_temp: { title: 'BMP390 Temp', key: 'bmp_temperature', unit: '°C', min: 0, max: 50, thresholds: { warning: 28, danger: 35 }, statusKey: 'bmp_status' },
@@ -11,9 +10,9 @@ const GAUGE_CONFIG = {
   sht_hum: { title: 'SHT31 Hum', key: 'sht_humidity', unit: '%', min: 0, max: 100, thresholds: { warning: 65, danger: 80 }, statusKey: 'sht_status' },
   scd_hum: { title: 'SCD41 Hum', key: 'scd_humidity', unit: '%', min: 0, max: 100, thresholds: { warning: 65, danger: 80 }, statusKey: 'scd_status' },
   ammonia: { title: 'Ammonia (NH3)', key: 'mq137_ammonia', unit: 'ppm', min: 0, max: 30, thresholds: { warning: 10, danger: 20 }, statusKey: 'mq_status' },
-  co2: { title: 'Carbon Dioxide', key: 'scd_co2', unit: 'ppm', min: 400, max: 5000, thresholds: { warning: 1500, danger: 3000 }, statusKey: 'scd_status' },
+  co2: { title: 'Carbon Dioxide', key: 'scd_co2', unit: 'ppm', min: 0, max: 5000, thresholds: { warning: 1500, danger: 3000 }, statusKey: 'scd_status' },
   pressure: { title: 'Air Pressure', key: 'bmp_pressure', unit: 'hPa', min: 700, max: 1100, thresholds: null, statusKey: 'bmp_status' },
-  airflow: { title: 'Air Velocity', key: 'fs_air_velocity', unit: 'm/s', min: 0, max: 7.5, thresholds: null, statusKey: 'fs_status' }
+  airflow: { title: 'Air Velocity', key: 'fs_airflow', unit: 'm/s', min: 0, max: 7.5, thresholds: null, statusKey: 'fs_status' }
 };
 
 const CHART_WIDGETS = {
@@ -21,7 +20,7 @@ const CHART_WIDGETS = {
   hum: { title: 'Humidity Comparison (%)', lines: [{ key: 'sht_humidity', color: '#3498db', name: 'SHT31 Hum' }, { key: 'scd_humidity', color: '#1abc9c', name: 'SCD41 Hum' }] },
   co2: { title: 'Carbon Dioxide - CO2 (ppm)', lines: [{ key: 'scd_co2', color: '#2c3e50', name: 'CO2 Levels' }] },
   ammonia: { title: 'Ammonia Gas - NH3 (ppm)', lines: [{ key: 'mq137_ammonia', color: '#e74c3c', name: 'Ammonia Levels' }] },
-  airflow: { title: 'Air Velocity (m/s)', lines: [{ key: 'fs_air_velocity', color: '#1abc9c', name: 'Air Speed' }] },
+  airflow: { title: 'Air Velocity (m/s)', lines: [{ key: 'fs_airflow', color: '#1abc9c', name: 'Air Speed' }] },
   pressure: { title: 'Air Pressure (hPa)', lines: [{ key: 'bmp_pressure', color: '#34495e', name: 'Pressure' }] }
 };
 
@@ -146,10 +145,9 @@ export default function LiveDashboard({ latestData, dataHistory }) {
       <Header 
         title="Live Telemetry" 
         subtitle="Farm data" 
-        showBell={false} 
         actionButton={
           <button onClick={() => setIsCustomizing(!isCustomizing)} style={{ backgroundColor: isCustomizing ? '#e74c3c' : '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-            {isCustomizing ? '❌ Lock Layout' : '⚙️ Customize Dashboard'}
+            {isCustomizing ? 'Lock Layout' : 'Customize Dashboard'}
           </button>
         } 
       />

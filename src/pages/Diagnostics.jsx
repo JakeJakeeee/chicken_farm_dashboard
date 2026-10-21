@@ -44,7 +44,7 @@ export default function Diagnostics({ latestData, alerts, setAlerts }) {
             </tr>
             <tr style={{ borderBottom: '1px solid #ecf0f1' }}>
               <td style={{ padding: '12px', fontWeight: 'bold' }}>SCD41 (CO2)</td><td>I2C</td><td>0x62</td>
-              <td style={{ color: latestData?.scd_status === 1 ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>{latestData?.scd_status === 1 ? '✅ ONLINE' : '❌ OFFLINE (Check 5V Power)'}</td>
+              <td style={{ color: latestData?.scd_status === 1 ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>{latestData?.scd_status === 1 ? '✅ ONLINE' : '❌ OFFLINE (Check Power)'}</td>
             </tr>
             <tr style={{ borderBottom: '1px solid #ecf0f1' }}>
               <td style={{ padding: '12px', fontWeight: 'bold' }}>FS3000 (Airflow)</td><td>I2C</td><td>0x28</td>
