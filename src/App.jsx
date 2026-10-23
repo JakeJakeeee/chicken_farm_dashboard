@@ -2,24 +2,20 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import LiveDashboard from './pages/LiveDashboard';
 import Diagnostics from './pages/Diagnostics';
-import HistoryExplorer from './pages/HistoryExplorer'; 
-import Alerts from './pages/Alerts'; 
-import './app.css'; 
+import HistoryExplorer from './pages/HistoryExplorer';
+import Alerts from './pages/Alerts';
+import './app.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('live'); 
+  const [activeTab, setActiveTab] = useState('live');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [dataHistory, setDataHistory] = useState([]);
   const [latestData, setLatestData] = useState(null);
   const [alerts, setAlerts] = useState([]);
 
-  const handleLogout = () => {
-    console.log("Logout disabled - authentication removed.");
-  };
-
   useEffect(() => {
-    let isMounted = true; 
+    let isMounted = true;
     let timerId;
 
     const formatRow = (item) => ({
@@ -86,7 +82,7 @@ function App() {
       }
     };
 
-    fetchDashboardData(); 
+    fetchDashboardData();
 
     return () => {
       isMounted = false;
@@ -100,28 +96,17 @@ function App() {
 
   return (
     <div className="app-layout">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        handleLogout={handleLogout}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         isOpen={isSidebarOpen}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         alertCount={alerts.length}
       />
 
-      <div className="main-content" style={{ position: 'relative' }}>
-        {!isSidebarOpen && (
-          <button 
-            className="unhide-sidebar-btn" 
-            onClick={() => setIsSidebarOpen(true)}
-            title="Show Sidebar"
-          >
-            ☰ Menu
-          </button>
-        )}
-
+      <div className="main-content">
         {activeTab === 'live' && <LiveDashboard latestData={latestData} dataHistory={dataHistory} />}
-        {activeTab === 'explorer' && <HistoryExplorer />} 
+        {activeTab === 'explorer' && <HistoryExplorer />}
         {activeTab === 'diagnostics' && <Diagnostics latestData={latestData} />}
         {activeTab === 'alerts' && <Alerts alerts={alerts} />}
       </div>

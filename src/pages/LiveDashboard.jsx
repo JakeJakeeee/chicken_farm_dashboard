@@ -1,20 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SensorCard from '../components/SensorCard';
+import ThresholdModal from '../components/ThresholdModal';
 
 const DEFAULT_GAUGE_CONFIG = {
   ammonia:  { sensor: 'MQ137',  title: 'Ammonia (NH3)',  key: 'mq137_ammonia',   unit: 'ppm', min: 0,   max: 20,   thresholds: { warning: 10,   danger: 20 },   statusKey: 'mq_status',  category: 'Gases',               color: '#DC2626' },
   airflow:  { sensor: 'FS3000', title: 'Air Velocity',   key: 'fs_airflow',      unit: 'm/s', min: 0.1, max: 2.5,  thresholds: { warning: 2.0,  danger: 2.5 },  statusKey: 'fs_status',  category: 'Air flow & pressure', color: '#0284C7' },
-  sht_temp: { sensor: 'SHT31',  title: 'Temperature',    key: 'sht_temperature', unit: '°C',  min: 18,  max: 30,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'sht_status', category: 'Temperature',         color: '#E11D48' },
-  bmp_temp: { sensor: 'BMP390', title: 'Temperature',    key: 'bmp_temperature', unit: '°C',  min: 18,  max: 30,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'bmp_status', category: 'Temperature',         color: '#7C3AED' },
-  scd_temp: { sensor: 'SCD41',  title: 'Temperature',    key: 'scd_temperature', unit: '°C',  min: 18,  max: 30,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'scd_status', category: 'Temperature',         color: '#D97706' },
-  sht_hum:  { sensor: 'SHT31',  title: 'Humidity',       key: 'sht_humidity',    unit: '%',   min: 40,  max: 70,   thresholds: { warning: 65,   danger: 80 },   statusKey: 'sht_status', category: 'Humidity',            color: '#2563EB' },
-  scd_hum:  { sensor: 'SCD41',  title: 'Humidity',       key: 'scd_humidity',    unit: '%',   min: 40,  max: 70,   thresholds: { warning: 65,   danger: 80 },   statusKey: 'scd_status', category: 'Humidity',            color: '#0D9488' },
+  sht_temp: { sensor: 'SHT31',  title: 'Temperature',    key: 'sht_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'sht_status', category: 'Temperature',         color: '#E11D48' },
+  bmp_temp: { sensor: 'BMP390', title: 'Temperature',    key: 'bmp_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'bmp_status', category: 'Temperature',         color: '#7C3AED' },
+  scd_temp: { sensor: 'SCD41',  title: 'Temperature',    key: 'scd_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'scd_status', category: 'Temperature',         color: '#D97706' },
+  sht_hum:  { sensor: 'SHT31',  title: 'Humidity',       key: 'sht_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80 },   statusKey: 'sht_status', category: 'Humidity',            color: '#2563EB' },
+  scd_hum:  { sensor: 'SCD41',  title: 'Humidity',       key: 'scd_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80 },   statusKey: 'scd_status', category: 'Humidity',            color: '#0D9488' },
   co2:      { sensor: 'SCD41',  title: 'Carbon Dioxide', key: 'scd_co2',         unit: 'ppm', min: 400, max: 2500, thresholds: { warning: 1500, danger: 2500 }, statusKey: 'scd_status', category: 'Gases',               color: '#1E293B' },
-  pressure: { sensor: 'BMP390', title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1025, thresholds: { warning: 1020, danger: 1030 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
+  pressure: { sensor: 'BMP390', title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1035, thresholds: { warning: 1020, danger: 1030 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
 };
 
-// Helper: Parse row timestamp into milliseconds
 function parseRowTimestampMs(row) {
   if (!row) return null;
 
@@ -54,10 +54,10 @@ function parseRowTimestampMs(row) {
   return null;
 }
 
-// Format millisecond timestamp to readable time label for chart XAxis
-function formatBucketTime(ms) {
-  const d = new Date(ms);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatTimeRange(startMs, endMs) {
+  const start = new Date(startMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const end = new Date(endMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${start} – ${end}`;
 }
 
 function getDiagnosticMessage(sensorKey, val) {
@@ -75,25 +75,61 @@ function getDiagnosticMessage(sensorKey, val) {
 export default function LiveDashboard({ latestData, dataHistory = [] }) {
   const [activeCategory, setActiveCategory] = useState('All readings');
   const [timeWindow, setTimeWindow] = useState('Live'); // 'Live', '0.5h', '1h', 'Custom'
-  const [customHours, setCustomHours] = useState(2);    // Default custom moving average = 2 hours
+  const [customHours, setCustomHours] = useState(2);
   const [showThresholdModal, setShowThresholdModal] = useState(false);
   const [isCustomizingTab, setIsCustomizingTab] = useState(false);
   const [filterAttentionOnly, setFilterAttentionOnly] = useState(false);
 
   const [sensorConfigs, setSensorConfigs] = useState(() => {
-    const saved = localStorage.getItem('farmThresholdsV7');
+    const saved = localStorage.getItem('farmThresholdsV8');
     return saved ? JSON.parse(saved) : DEFAULT_GAUGE_CONFIG;
   });
 
-  const [visibleMultiSensors, setVisibleMultiSensors] = useState({
-    sht_temp: true, bmp_temp: true, scd_temp: true, sht_hum: true, scd_hum: true
+  // Track visibility for ALL sensors so "All readings", "Temperature", and "Humidity" can be customized
+  const [visibleSensors, setVisibleSensors] = useState(() => {
+    const saved = localStorage.getItem('farmVisibleSensorsV1');
+    if (saved) return JSON.parse(saved);
+    return Object.keys(DEFAULT_GAUGE_CONFIG).reduce((acc, k) => ({ ...acc, [k]: true }), {});
+  });
+
+  // Email configuration state (Option B: synced to Node-RED)
+  const [emailConfig, setEmailConfig] = useState(() => {
+    const saved = localStorage.getItem('farmEmailConfigV2');
+    return saved ? JSON.parse(saved) : {
+      enabled: false,
+      email: '',
+      syncUrl: 'http://localhost:1880/api/update-thresholds'
+    };
   });
 
   useEffect(() => {
-    localStorage.setItem('farmThresholdsV7', JSON.stringify(sensorConfigs));
+    localStorage.setItem('farmThresholdsV8', JSON.stringify(sensorConfigs));
   }, [sensorConfigs]);
 
-  // Ensure chronological order (oldest -> newest)
+  useEffect(() => {
+    localStorage.setItem('farmVisibleSensorsV1', JSON.stringify(visibleSensors));
+  }, [visibleSensors]);
+
+  useEffect(() => {
+    localStorage.setItem('farmEmailConfigV2', JSON.stringify(emailConfig));
+  }, [emailConfig]);
+
+  // Sync saved thresholds to Node-RED once when dashboard loads
+  useEffect(() => {
+    const targetUrl = emailConfig.syncUrl || 'http://localhost:1880/api/update-thresholds';
+    fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thresholds: sensorConfigs,
+        emailConfig: emailConfig
+      })
+    }).catch(() => {
+      // Silent catch on initial load if Node-RED endpoint isn't ready yet
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Chronological order (oldest -> newest)
   const sortedHistory = useMemo(() => {
     if (!Array.isArray(dataHistory) || dataHistory.length === 0) {
       return latestData ? [latestData] : [];
@@ -103,16 +139,14 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return copy;
   }, [dataHistory, latestData]);
 
-  // 1. CALCULATE INTERVAL BUCKET AVERAGES (Every 0.5h, Every 1h, or Every Custom Hours)
+  // 1. CALCULATE START-ANCHORED INTERVAL BUCKET AVERAGES
   const bucketedSeries = useMemo(() => {
     if (sortedHistory.length === 0) return [];
 
-    // In 'Live' mode, return the raw readings directly (last 60 raw points for smooth live chart)
     if (timeWindow === 'Live') {
       return sortedHistory.slice(-60);
     }
 
-    // Determine bucket duration in milliseconds
     let intervalHours = 0.5;
     if (timeWindow === '0.5h') intervalHours = 0.5;
     else if (timeWindow === '1h') intervalHours = 1;
@@ -120,19 +154,15 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
     const bucketMs = intervalHours * 60 * 60 * 1000;
     const sensorKeys = Object.values(sensorConfigs).map(c => c.key);
-
-    // Group readings into discrete time intervals (e.g., every 30 mins or every 1 hour)
     const bucketsMap = new Map();
+
+    const absoluteFirstMs = sortedHistory.length > 0 ? parseRowTimestampMs(sortedHistory[0]) || 0 : 0;
 
     sortedHistory.forEach((row, idx) => {
       const tMs = parseRowTimestampMs(row);
-      // Fallback if timestamp is missing: group by sample count (20s per reading -> 180 samples/hr)
-      // Get the timestamp of the very first record to use as our anchor point
-    const absoluteFirstMs = sortedHistory.length > 0 ? parseRowTimestampMs(sortedHistory[0]) || 0 : 0;
-
-    const bucketId = tMs && absoluteFirstMs
-  ? Math.floor((tMs - absoluteFirstMs) / bucketMs) * bucketMs + absoluteFirstMs
-  : Math.floor(idx / Math.max(1, Math.round(intervalHours * 180)));
+      const bucketId = tMs && absoluteFirstMs
+        ? Math.floor((tMs - absoluteFirstMs) / bucketMs) * bucketMs + absoluteFirstMs
+        : Math.floor(idx / Math.max(1, Math.round(intervalHours * 180)));
 
       if (!bucketsMap.has(bucketId)) {
         bucketsMap.set(bucketId, {
@@ -147,15 +177,17 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
       if (tMs) b.lastMs = tMs;
     });
 
-    // Calculate 1 average value per interval bucket
     const averagedBuckets = [];
     bucketsMap.forEach((bucket) => {
+      const startTimeMs = bucket.bucketId;
+      const endTimeMs = bucket.bucketId + bucketMs;
+
       const avgRow = {
         sampleCount: bucket.rows.length,
-        timestamp_ms: bucket.lastMs || bucket.bucketId,
-        time: bucket.lastMs
-          ? formatBucketTime(bucket.lastMs)
-          : (bucket.rows[bucket.rows.length - 1]?.time || `Window ${averagedBuckets.length + 1}`)
+        timestamp_ms: bucket.lastMs || startTimeMs,
+        time: startTimeMs > 1e11
+          ? formatTimeRange(startTimeMs, endTimeMs)
+          : `Window ${averagedBuckets.length + 1}`
       };
 
       sensorKeys.forEach((sKey) => {
@@ -173,11 +205,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return averagedBuckets;
   }, [sortedHistory, timeWindow, customHours, sensorConfigs]);
 
-  // 2. CURRENT DISPLAYED CARD VALUE:
-  // - In 'Live' mode: shows the newest raw reading from latestData
-  // - In '0.5h' / '1h' / 'Custom' mode: shows the latest interval's moving average
   // 2. TRUE TRAILING MOVING AVERAGE FOR CARDS & AQS
-  // When '0.5h' or '1h' is selected, this averages ALL points backward from the latest reading.
   const currentCardData = useMemo(() => {
     if (timeWindow === 'Live') {
       return latestData || sortedHistory[sortedHistory.length - 1] || {};
@@ -185,8 +213,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
     if (sortedHistory.length === 0) return latestData || {};
 
-    // Determine window size in milliseconds
-    let windowMs = 30 * 60 * 1000; // default 0.5h
+    let windowMs = 30 * 60 * 1000;
     if (timeWindow === '0.5h') windowMs = 30 * 60 * 1000;
     else if (timeWindow === '1h') windowMs = 60 * 60 * 1000;
     else if (timeWindow === 'Custom') windowMs = Math.max(0.05, Number(customHours) || 1) * 60 * 60 * 1000;
@@ -196,7 +223,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
     const cutoff = latestMs - windowMs;
 
-    // Grab ALL historical rows that fall strictly within the trailing window [cutoff, latestMs]
     const windowRows = sortedHistory.filter(r => {
       const t = parseRowTimestampMs(r);
       return t ? t >= cutoff && t <= latestMs : false;
@@ -204,7 +230,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
     if (windowRows.length === 0) return latestData || sortedHistory[sortedHistory.length - 1] || {};
 
-    // Compute the true arithmetic mean across all rows in this trailing window
     const averagedResult = { ...latestData };
     Object.values(sensorConfigs).forEach(cfg => {
       const validNums = windowRows
@@ -244,20 +269,10 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     );
 
     let label = 'Good';
-    let color = '#16A34A';
-    let ringColor = '#16A34A';
+    if (score < 50) label = 'Poor';
+    else if (score < 75) label = 'Fair';
 
-    if (score < 50) {
-      label = 'Emergency';
-      color = '#DC2626';
-      ringColor = '#DC2626';
-    } else if (score < 75) {
-      label = 'Fair';
-      color = '#D4A017';
-      ringColor = '#D4A017';
-    }
-
-    return { score, label, color, ringColor };
+    return { score, label };
   }, [currentCardData, sensorConfigs]);
 
   // 4. DETECT SENSORS THAT NEED ATTENTION
@@ -268,8 +283,13 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
       const val = Number(currentCardData?.[cfg.key]);
       if (!isNaN(val)) {
         if (val >= cfg.thresholds.warning || (k === 'airflow' && val < 0.5)) {
+          const isDanger = val >= cfg.thresholds.danger;
           issues.push({
             key: k,
+            level: isDanger ? 'EMERGENCY' : 'WARNING',
+            value: val.toFixed(2),
+            unit: cfg.unit,
+            threshold: isDanger ? cfg.thresholds.danger : cfg.thresholds.warning,
             title: `${cfg.sensor} ${cfg.title}`,
             message: getDiagnosticMessage(k, val)
           });
@@ -279,7 +299,66 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return issues;
   }, [currentCardData, sensorConfigs]);
 
+  // 5. OPTION B: SYNC THRESHOLDS TO NODE-RED WHEN SAVING MODAL
+  const handleCloseModalAndSync = () => {
+    setShowThresholdModal(false);
+
+    const targetUrl = emailConfig.syncUrl || 'http://localhost:1880/api/update-thresholds';
+    fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thresholds: sensorConfigs,
+        emailConfig: emailConfig
+      })
+    })
+      .then(() => console.log('Thresholds synced to Node-RED successfully!'))
+      .catch((err) => console.error('Failed to sync thresholds to Node-RED:', err));
+  };
+
+  // Send a test request to Node-RED
+  const handleSendTestEmail = () => {
+    if (!emailConfig.email) {
+      alert('Please enter a Recipient Email first.');
+      return;
+    }
+    const targetUrl = emailConfig.syncUrl || 'http://localhost:1880/api/update-thresholds';
+    fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        testEmail: true,
+        thresholds: sensorConfigs,
+        emailConfig: emailConfig
+      })
+    })
+      .then(() => alert(`Test request sent to Node-RED for ${emailConfig.email}!`))
+      .catch(() => alert(`Could not reach Node-RED at ${targetUrl}. Check URL or CORS.`));
+  };
+
+  // Update min, max, warning, or danger
+  const handleSensorUpdate = (sensorKey, field, newVal) => {
+    const numVal = Number(newVal);
+    setSensorConfigs(prev => {
+      const current = prev[sensorKey];
+      if (field === 'min' || field === 'max') {
+        return {
+          ...prev,
+          [sensorKey]: { ...current, [field]: numVal }
+        };
+      }
+      return {
+        ...prev,
+        [sensorKey]: {
+          ...current,
+          thresholds: { ...current.thresholds, [field]: numVal }
+        }
+      };
+    });
+  };
+
   const categories = ['All readings', 'Temperature', 'Humidity', 'Gases', 'Air flow & pressure'];
+  const isCustomizableCategory = ['All readings', 'Temperature', 'Humidity'].includes(activeCategory);
 
   const displayedSensorKeys = Object.keys(sensorConfigs).filter(k => {
     const cfg = sensorConfigs[k];
@@ -291,25 +370,12 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
     if (activeCategory !== 'All readings' && cfg.category !== activeCategory) return false;
 
-    if ((activeCategory === 'Temperature' || activeCategory === 'Humidity') && visibleMultiSensors[k] === false) {
+    if (isCustomizableCategory && visibleSensors[k] === false) {
       return false;
     }
 
     return true;
   });
-
-  const handleThresholdEdit = (sensorKey, level, newVal) => {
-    setSensorConfigs(prev => ({
-      ...prev,
-      [sensorKey]: {
-        ...prev[sensorKey],
-        thresholds: {
-          ...prev[sensorKey].thresholds,
-          [level]: Number(newVal)
-        }
-      }
-    }));
-  };
 
   const isMultiSensorTab = activeCategory === 'Temperature' || activeCategory === 'Humidity';
   const activeWindowLabel = timeWindow === 'Custom' ? `${customHours}h Avg` : timeWindow;
@@ -332,7 +398,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
 
         <div className="header-actions">
-          {isMultiSensorTab && (
+          {isCustomizableCategory && (
             <button
               className="secondary-pill-btn"
               onClick={() => setIsCustomizingTab(!isCustomizingTab)}
@@ -354,7 +420,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       </div>
 
-      {/* SUMMARY ROW (Attention Banner on Left + Air Quality Score Card on Right) */}
+      {/* SUMMARY ROW (Attention Banner on Left + Horizontal Bar Air Quality Score Card on Right) */}
       <div className="dashboard-summary-row">
         {attentionItems.length > 0 ? (
           <div className="attention-banner">
@@ -369,7 +435,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
             <ul className="attention-list">
               {attentionItems.map((issue, idx) => (
                 <li key={idx}>
-                  <strong>{issue.title}:</strong> {issue.message}
+                  <strong>{issue.title} ({issue.value} {issue.unit}):</strong> {issue.message}
                 </li>
               ))}
             </ul>
@@ -389,20 +455,29 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
           </div>
         )}
 
-        <div className="aqs-card">
-          <div className="aqi-ring" style={{ borderColor: airQuality.ringColor }}>
-            {airQuality.score}
+        {/* HORIZONTAL BAR AIR QUALITY SCORE CARD */}
+        <div className="aqs-bar-card">
+          <div className="aqs-score-top">
+            <span className="aqs-big-num">{airQuality.score}</span>
+            <span className="aqs-out-of">/100</span>
           </div>
-          <div className="aqi-meta">
-            <span className="aqi-caption">AIR QUALITY SCORE</span>
-            <span className="aqi-status-text" style={{ color: airQuality.color }}>
-              {airQuality.label}
-            </span>
+
+          <div className="aqs-gradient-track">
+            <div
+              className="aqs-slider-dot"
+              style={{ left: `${Math.max(3, Math.min(97, airQuality.score))}%` }}
+            />
+          </div>
+
+          <div className="aqs-scale-labels">
+            <span>Poor</span>
+            <span>Fair</span>
+            <span>Good</span>
           </div>
         </div>
       </div>
 
-      {/* CATEGORY TABS & MOVING AVERAGE SELECTOR ('Live', '0.5h', '1h', 'Custom') */}
+      {/* CATEGORY TABS & MOVING AVERAGE SELECTOR */}
       <div className="filter-bar-row">
         <div className="pill-group">
           {categories.map(cat => (
@@ -420,7 +495,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
           ))}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="window-selector-wrap">
           <div className="pill-group">
             {['Live', '0.5h', '1h', 'Custom'].map(win => (
               <button
@@ -433,20 +508,8 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
             ))}
           </div>
 
-          {/* Custom Moving Average Input Box when 'Custom' tab is clicked */}
           {timeWindow === 'Custom' && (
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: '#FFFFFF',
-              padding: '6px 14px',
-              borderRadius: '999px',
-              border: '1.5px solid #0055B8',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              color: '#032B5E'
-            }}>
+            <div className="custom-hours-pill">
               <span>Every</span>
               <input
                 type="number"
@@ -454,14 +517,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
                 step="0.5"
                 value={customHours}
                 onChange={(e) => setCustomHours(e.target.value)}
-                style={{
-                  width: '58px',
-                  padding: '4px 6px',
-                  borderRadius: '6px',
-                  border: '1px solid #CBD5E1',
-                  textAlign: 'center',
-                  fontWeight: 700
-                }}
               />
               <span>Hours</span>
             </div>
@@ -469,26 +524,47 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       </div>
 
-      {/* Customize Drawer */}
-      {isMultiSensorTab && isCustomizingTab && (
+      {/* Customize Drawer (Works for "All readings", "Temperature", and "Humidity") */}
+      {isCustomizableCategory && isCustomizingTab && (
         <div className="customize-drawer">
-          <strong style={{ fontSize: '0.9rem', color: '#032B5E' }}>
-            Select {activeCategory} Sensors to Display:
-          </strong>
-          {Object.keys(sensorConfigs)
-            .filter(k => sensorConfigs[k].category === activeCategory)
-            .map(k => (
-              <label key={k} className="toggle-label">
-                <input
-                  type="checkbox"
-                  checked={visibleMultiSensors[k] !== false}
-                  onChange={() =>
-                    setVisibleMultiSensors(prev => ({ ...prev, [k]: !prev[k] }))
-                  }
-                />
-                {sensorConfigs[k].sensor} {sensorConfigs[k].title}
-              </label>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '6px' }}>
+            <strong style={{ fontSize: '0.9rem', color: '#032B5E' }}>
+              Select {activeCategory} Sensors to Display:
+            </strong>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="secondary-pill-btn"
+                style={{ padding: '3px 10px', fontSize: '0.75rem' }}
+                onClick={() => {
+                  const updated = { ...visibleSensors };
+                  Object.keys(sensorConfigs)
+                    .filter(k => activeCategory === 'All readings' || sensorConfigs[k].category === activeCategory)
+                    .forEach(k => { updated[k] = true; });
+                  setVisibleSensors(updated);
+                }}
+              >
+                Select All
+              </button>
+            </div>
+          </div>
+
+          <div className="customize-checkbox-list">
+            {Object.keys(sensorConfigs)
+              .filter(k => activeCategory === 'All readings' || sensorConfigs[k].category === activeCategory)
+              .map(k => (
+                <label key={k} className="toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={visibleSensors[k] !== false}
+                    onChange={() =>
+                      setVisibleSensors(prev => ({ ...prev, [k]: !prev[k] }))
+                    }
+                  />
+                  {sensorConfigs[k].sensor} {sensorConfigs[k].title}
+                </label>
+              ))}
+          </div>
         </div>
       )}
 
@@ -496,7 +572,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
       <div className="sensor-cards-grid">
         {displayedSensorKeys.map(k => {
           const cfg = sensorConfigs[k];
-          // Plot the bucketed moving average series on each card's sparkline
           const series = bucketedSeries.map(r => Number(r[cfg.key])).filter(v => !isNaN(v));
 
           return (
@@ -518,7 +593,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         })}
       </div>
 
-      {/* SEPARATE LINE CHARTS (Plots bucketed moving averages when 0.5h, 1h, or Custom is selected) */}
+      {/* SEPARATE LINE CHARTS */}
       {activeCategory !== 'All readings' && (
         <div>
           {isMultiSensorTab ? (
@@ -554,7 +629,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
+            <div className="single-charts-grid">
               {displayedSensorKeys.map(k => {
                 const cfg = sensorConfigs[k];
                 return (
@@ -590,7 +665,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       )}
 
-      {/* MOVING AVERAGE INTERVAL LOG TABLE (Shows every 30-min, 1-hr, or Custom interval average) */}
+      {/* MOVING AVERAGE INTERVAL LOG TABLE */}
       {timeWindow !== 'Live' && bucketedSeries.length > 0 && (
         <div className="separate-chart-card" style={{ marginTop: '24px' }}>
           <h3 className="metric-heading" style={{ marginBottom: '12px' }}>
@@ -629,68 +704,16 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       )}
 
-      {/* ALERT THRESHOLDS MODAL */}
-      {showThresholdModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 className="metric-heading" style={{ fontSize: '1.4rem' }}>
-                Alert Thresholds (Green / Yellow / Red)
-              </h3>
-              <button
-                onClick={() => setShowThresholdModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {Object.keys(sensorConfigs).map(k => {
-              const cfg = sensorConfigs[k];
-              return (
-                <div key={k} className="threshold-row">
-                  <div>
-                    <div className="chip-label">{cfg.sensor}</div>
-                    <strong>{cfg.title} ({cfg.unit})</strong>
-                  </div>
-
-                  <div className="thresh-input-group">
-                    <label style={{ color: '#B45309', fontWeight: 600 }}>
-                      Warning (Yellow):
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="thresh-input"
-                        style={{ marginLeft: '6px' }}
-                        value={cfg.thresholds.warning}
-                        onChange={e => handleThresholdEdit(k, 'warning', e.target.value)}
-                      />
-                    </label>
-
-                    <label style={{ color: '#B91C1C', fontWeight: 600 }}>
-                      Emergency (Red):
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="thresh-input"
-                        style={{ marginLeft: '6px' }}
-                        value={cfg.thresholds.danger}
-                        onChange={e => handleThresholdEdit(k, 'danger', e.target.value)}
-                      />
-                    </label>
-                  </div>
-                </div>
-              );
-            })}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '18px' }}>
-              <button className="primary-pill-btn" onClick={() => setShowThresholdModal(false)}>
-                Save & Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* EXTRACTED ALERT THRESHOLDS MODAL */}
+      <ThresholdModal
+        isOpen={showThresholdModal}
+        onClose={handleCloseModalAndSync}
+        sensorConfigs={sensorConfigs}
+        onUpdateSensor={handleSensorUpdate}
+        emailConfig={emailConfig}
+        onUpdateEmailConfig={setEmailConfig}
+        onTestEmail={handleSendTestEmail}
+      />
     </div>
   );
 }
