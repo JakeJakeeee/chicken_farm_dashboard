@@ -22,54 +22,66 @@ function App() {
     let isMounted = true; 
     let timerId;
 
+    const formatRow = (item) => ({
+      ...item,
+      time: item?.timestamp ? String(item.timestamp).split(', ')[1] || String(item.timestamp) : ''
+    });
+
     const fetchDashboardData = async () => {
       try {
-        // 1. Fetch the single latest reading for instant UI updates
+        // 1. Fetch live reading from /api/live
         const liveRes = await fetch('http://localhost:1880/api/live');
-        const liveJson = await liveRes.json();
-        
-        if (liveJson && liveJson.length > 0) {
-          const newest = liveJson[0]; // Assuming /api/live returns the latest 1 row
-          setLatestData({
-            ...newest,
-            time: newest.timestamp ? newest.timestamp.split(', ')[1] || newest.timestamp : ''
-          });
+        if (liveRes.ok) {
+          const liveJson = await liveRes.json();
+          const liveArray = Array.isArray(liveJson) ? liveJson : (liveJson ? [liveJson] : []);
+
+          if (liveArray.length > 0 && isMounted) {
+            const formattedLive = liveArray.map(formatRow);
+            const newestReading = formattedLive[formattedLive.length - 1];
+            setLatestData(newestReading);
+            setDataHistory(prev => (prev.length === 0 ? formattedLive : prev));
+          }
         }
 
-        // 2. Fetch the 200+ rows for the charts and averages
-        const histRes = await fetch('http://localhost:1880/api/history');
-        const histJson = await histRes.json();
-
-        if (histJson && histJson.length > 0) {
-          // If Node-RED sends DESC (newest first), reverse it for Recharts (oldest to newest)
-          const sortedHistory = histJson.reverse(); 
-          
-          const formattedHistory = sortedHistory.map((item) => ({
-            ...item,
-            time: item.timestamp ? item.timestamp.split(', ')[1] || item.timestamp : ''
-          }));
-          setDataHistory(formattedHistory);
+        // 2. Fetch full historical dataset from /api/history
+        try {
+          const histRes = await fetch('http://localhost:1880/api/history');
+          if (histRes.ok) {
+            const histJson = await histRes.json();
+            const histArray = Array.isArray(histJson) ? histJson : (histJson ? [histJson] : []);
+            if (histArray.length > 0 && isMounted) {
+              const formattedHistory = histArray.map(formatRow);
+              setDataHistory(formattedHistory);
+              setLatestData(prev => prev || formattedHistory[formattedHistory.length - 1]);
+            }
+          }
+        } catch (histErr) {
+          // Fallback to /api/live data if /api/history is not reachable
         }
 
-        // 3. Fetch Alerts
-        const alertsRes = await fetch('http://localhost:1880/api/alerts');
-        const alertsData = await alertsRes.json();
-        
-        if (alertsData && isMounted) {
-          const formattedAlerts = alertsData.map(dbAlert => ({
-            id: dbAlert.id,
-            type: dbAlert.type,
-            msg: dbAlert.message,
-            time: dbAlert.timestamp_text
-          }));
-          setAlerts(formattedAlerts);
+        // 3. Fetch alerts from /api/alerts
+        try {
+          const alertsRes = await fetch('http://localhost:1880/api/alerts');
+          if (alertsRes.ok) {
+            const alertsData = await alertsRes.json();
+            if (Array.isArray(alertsData) && isMounted) {
+              const formattedAlerts = alertsData.map(dbAlert => ({
+                id: dbAlert.id,
+                type: dbAlert.type,
+                msg: dbAlert.message,
+                time: dbAlert.timestamp_text
+              }));
+              setAlerts(formattedAlerts);
+            }
+          }
+        } catch (alertErr) {
+          // Ignore alert endpoint errors
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       }
 
       if (isMounted) {
-        // Poll every 3 seconds
         timerId = setTimeout(fetchDashboardData, 3000);
       }
     };
@@ -98,7 +110,6 @@ function App() {
       />
 
       <div className="main-content" style={{ position: 'relative' }}>
-        {/* When sidebar is hidden, show floating button on top-left to unhide it */}
         {!isSidebarOpen && (
           <button 
             className="unhide-sidebar-btn" 

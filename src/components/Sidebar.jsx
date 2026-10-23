@@ -8,7 +8,6 @@ export default function Sidebar({ activeTab, setActiveTab, handleLogout, isOpen,
           <h2>Farm IoT</h2>
           <div className="sidebar-subtitle">Barn air monitor</div>
         </div>
-        {/* Button to hide the sidebar */}
         <button 
           className="sidebar-toggle-btn" 
           onClick={toggleSidebar} 

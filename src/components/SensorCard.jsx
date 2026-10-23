@@ -11,41 +11,26 @@ export default function SensorCard({
   status,
   historyValues = [],
   showInlineChart = true,
-  windowLabel = '0.5h'
+  windowLabel = 'Live'
 }) {
-  if (value === undefined || value === null || isNaN(value)) return null;
+  // Default to 0 if value is missing so the card never disappears
+  const numericValue = value !== undefined && value !== null && !isNaN(Number(value))
+    ? Number(value)
+    : 0;
 
-  // Offline check
-  if (status === 0) {
-    return (
-      <div className="barn-card state-emergency">
-        <div className="barn-card-top">
-          <div>
-            <div className="chip-label">{sensorName}</div>
-            <h3 className="metric-heading">{title}</h3>
-          </div>
-          <span className="state-badge emergency">Offline</span>
-        </div>
-        <div style={{ padding: '24px 0', textAlign: 'center', color: '#DC2626', fontWeight: 700 }}>
-          ⚠️ SENSOR OFFLINE
-        </div>
-      </div>
-    );
-  }
-
-  // Evaluate Threshold Status: Normal (Green) | Warning (Yellow) | Emergency (Red)
+  // Green = Normal, Yellow = Warning, Red = Emergency
   let healthState = 'normal';
-  let stateText = 'Normal';
+  let stateText = status === 0 ? 'Check Sensor' : 'Normal';
   let accentColor = '#16A34A'; // Green
   let areaFill = 'rgba(22, 163, 74, 0.12)';
 
   if (thresholds) {
-    if (value >= thresholds.danger) {
+    if (numericValue >= thresholds.danger) {
       healthState = 'emergency';
       stateText = 'Emergency';
       accentColor = '#DC2626'; // Red
       areaFill = 'rgba(220, 38, 38, 0.14)';
-    } else if (value >= thresholds.warning) {
+    } else if (numericValue >= thresholds.warning) {
       healthState = 'warning';
       stateText = 'Warning';
       accentColor = '#D4A017'; // Yellow
@@ -53,21 +38,18 @@ export default function SensorCard({
     }
   }
 
-  // Trend delta calculation from recent readings
-  const pts = historyValues.length >= 2 ? historyValues : [value, value];
+  const pts = historyValues.length >= 2 ? historyValues : [numericValue, numericValue];
   const prevVal = pts[pts.length - 2];
-  const diff = value - prevVal;
+  const diff = numericValue - prevVal;
   let deltaText = '— Steady';
   if (Math.abs(diff) >= 0.01) {
     const arrow = diff > 0 ? '↑' : '↓';
     deltaText = `${arrow} ${Math.abs(diff).toFixed(unit === 'ppm' && max > 500 ? 0 : 2)} ${unit}`;
   }
 
-  // Progress bar percentage
   const span = max - min <= 0 ? 1 : max - min;
-  const pct = Math.min(100, Math.max(0, ((value - min) / span) * 100));
+  const pct = Math.min(100, Math.max(0, ((numericValue - min) / span) * 100));
 
-  // Build SVG Sparkline path for "All readings" mode
   const svgW = 300;
   const svgH = 60;
   const minPt = Math.min(...pts);
@@ -88,7 +70,9 @@ export default function SensorCard({
       <div>
         <div className="barn-card-top">
           <div>
-            <div className="chip-label">{sensorName}</div>
+            <div className="chip-label">
+              {sensorName} {status === 0 && <span style={{ color: '#DC2626' }}>(Status: 0)</span>}
+            </div>
             <h3 className="metric-heading">{title}</h3>
           </div>
           <span className={`state-badge ${healthState}`}>{stateText}</span>
@@ -96,7 +80,7 @@ export default function SensorCard({
 
         <div className="barn-value-row">
           <div>
-            <span className="barn-number">{Number(value).toFixed(decimals)}</span>
+            <span className="barn-number">{numericValue.toFixed(decimals)}</span>
             <span className="barn-unit">{unit}</span>
           </div>
           <span className="barn-delta">{deltaText}</span>
@@ -123,14 +107,14 @@ export default function SensorCard({
             </svg>
           </div>
           <div className="barn-card-footer">
-            Safe range {min}–{thresholds ? thresholds.warning : max} {unit} · avg window {windowLabel}
+            Safe range {min}–{thresholds ? thresholds.warning : max} {unit} · Mode: {windowLabel} ({pts.length} pts)
           </div>
         </div>
       )}
 
       {!showInlineChart && (
         <div className="barn-card-footer">
-          Warning: {thresholds?.warning ?? '--'} {unit} · Emergency: {thresholds?.danger ?? '--'} {unit} ({windowLabel} avg)
+          Warning: {thresholds?.warning ?? '--'} {unit} · Emergency: {thresholds?.danger ?? '--'} {unit} ({windowLabel})
         </div>
       )}
     </div>

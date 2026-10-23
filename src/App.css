@@ -33,7 +33,7 @@ body {
   overflow: hidden;
 }
 
-/* --- COLLAPSIBLE SIDEBAR --- */
+/* --- COLLAPSIBLE SIDEBAR (BLUE THEME) --- */
 .sidebar {
   width: 250px;
   background-color: #044A8E;
@@ -90,7 +90,6 @@ body {
   background: rgba(255, 255, 255, 0.26);
 }
 
-/* Floating button to unhide sidebar when hidden */
 .unhide-sidebar-btn {
   position: fixed;
   top: 20px;
@@ -181,7 +180,6 @@ body {
   overflow-y: auto;
 }
 
-/* --- LIVE DASHBOARD HEADER & CONTROLS --- */
 .live-dashboard-wrapper {
   max-width: 1180px;
   margin: 0 auto;
@@ -210,7 +208,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .barn-title-group {
@@ -226,47 +224,6 @@ body {
   font-weight: 700;
   color: #032B5E;
   margin: 0;
-}
-
-/* Air Quality Score Widget */
-.aqi-widget {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.aqi-ring {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: Georgia, serif;
-  font-weight: 700;
-  font-size: 1.1rem;
-  background: #FFFFFF;
-  border: 4px solid #16A34A;
-}
-
-.aqi-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.aqi-caption {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #6B7280;
-  text-transform: uppercase;
-}
-
-.aqi-status-text {
-  font-family: Georgia, serif;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #032B5E;
 }
 
 .header-actions {
@@ -302,6 +259,118 @@ body {
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* --- DYNAMIC ATTENTION BANNER & AQS CARD ROW (BELOW TITLE) --- */
+.dashboard-summary-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  align-items: stretch;
+}
+
+.attention-banner {
+  flex: 1;
+  background-color: #FEF3C7;
+  border: 1.5px solid #F59E0B;
+  border-radius: 18px;
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.attention-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #78350F;
+  font-size: 1.02rem;
+  margin-bottom: 10px;
+}
+
+.attention-list {
+  margin: 0 0 12px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  color: #78350F;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.attention-list strong {
+  color: #451A03;
+}
+
+.show-only-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #0055B8;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  text-align: left;
+  width: max-content;
+}
+
+.show-only-btn:hover {
+  text-decoration: underline;
+}
+
+.aqs-card {
+  background: #FFFFFF;
+  border: 1.5px solid #E5E2D9;
+  border-radius: 18px;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 265px;
+}
+
+.aqi-ring {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  background: #FFFFFF;
+  border: 5px solid #16A34A;
+  border-left-color: #E5E7EB;
+}
+
+.aqi-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.aqi-caption {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #6B7280;
+  text-transform: uppercase;
+}
+
+.aqi-status-text {
+  font-family: Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #032B5E;
+}
+
+@media (max-width: 850px) {
+  .dashboard-summary-row {
+    flex-direction: column;
+  }
 }
 
 /* --- FILTER & AVERAGE TIME BARS --- */
@@ -375,7 +444,6 @@ body {
   transition: border-color 0.2s;
 }
 
-/* Border & Badge Colors: Green = Normal, Yellow = Warning, Red = Emergency */
 .barn-card.state-normal {
   border-color: #D5DFD7;
 }
@@ -459,7 +527,6 @@ body {
   font-weight: 500;
 }
 
-/* Progress Bar + Dot */
 .barn-track {
   width: 100%;
   height: 5px;
@@ -494,7 +561,6 @@ body {
   color: #6B7280;
 }
 
-/* --- SEPARATE HISTORICAL TIMESTAMP CHART PANEL --- */
 .separate-chart-card {
   background: #FFFFFF;
   border: 1.5px solid #E5E2D9;
@@ -543,30 +609,50 @@ body {
   background: #FFFFFF;
   border: 1px solid #E5E2D9;
   border-radius: 14px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .thresh-input-group {
   display: flex;
+  flex-direction: column; /* Forces Warning above Emergency */
+  align-items: flex-end;  /* Aligns inputs to the right */
+  gap: 8px;
+}
+
+.thresh-input-group label {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.8rem;
+  justify-content: space-between;
+  width: 190px;           /* Locks the width so both input boxes line up in a straight column */
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* Warning Label Color */
+.thresh-input-group label:first-child {
+  color: #B45309; 
+}
+
+/* Emergency Label Color */
+.thresh-input-group label:last-child {
+  color: #B91C1C; 
 }
 
 .thresh-input {
-  width: 68px;
-  padding: 6px;
+  width: 75px;
+  padding: 5px 8px;
   border: 1px solid #CBD5E1;
   border-radius: 8px;
   text-align: center;
+  font-family: inherit;
+  font-weight: 600;
 }
 
-/* --- KEEP EXISTING HISTORY EXPLORER & TABLE CLASSES --- */
+/* --- HISTORY EXPLORER & TABLE CLASSES --- */
 .control-panel {
   background: white;
   padding: 20px;
@@ -664,103 +750,4 @@ body {
 
 .history-table tr:nth-child(even) {
   background-color: #f8f9fa;
-}
-
-/* --- DYNAMIC ATTENTION BANNER & AQS CARD ROW --- */
-.dashboard-summary-row {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 24px;
-  align-items: stretch;
-}
-
-/* Left Panel: Yellow Attention Banner */
-.attention-banner {
-  flex: 1;
-  background-color: #FEF3C7; /* Soft yellow */
-  border: 1px solid #FDE68A;
-  border-radius: 16px;
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.attention-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  color: #92400E;
-  font-size: 1.05rem;
-  margin-bottom: 12px;
-}
-
-.attention-list {
-  margin: 0 0 14px 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.92rem;
-  color: #78350F;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.attention-list strong {
-  color: #92400E;
-}
-
-.show-only-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  color: #15803D; /* Forest green link */
-  font-weight: 600;
-  font-size: 0.88rem;
-  cursor: pointer;
-  text-align: left;
-  display: inline-block;
-  width: max-content;
-  transition: opacity 0.2s;
-}
-
-.show-only-btn:hover {
-  opacity: 0.7;
-}
-
-/* Right Panel: White AQS Card */
-.aqs-card {
-  background: #FFFFFF;
-  border: 1px solid #E5E2D9;
-  border-radius: 16px;
-  padding: 20px 28px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 260px;
-}
-
-.aqi-ring {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: Georgia, serif;
-  font-weight: 700;
-  font-size: 1.2rem;
-  background: #FFFFFF;
-  border: 5px solid #16A34A;
-  border-left-color: #E5E7EB;
-}
-
-@media (max-width: 850px) {
-  .dashboard-summary-row {
-    flex-direction: column;
-  }
-  .aqs-card {
-    width: 100%;
-  }
 }
