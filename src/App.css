@@ -818,3 +818,328 @@ body {
     width: 100%;
   }
 }
+
+/* =========================================================
+   SENSOR CARD INTERNAL STYLES (MATCHES IMAGE 2 DESIGN)
+   ========================================================= */
+.barn-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #E5E2D9;
+  border-radius: 18px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 6px rgba(15, 41, 66, 0.04);
+}
+
+/* Colored Card Borders based on Normal / Warning / Emergency */
+.barn-card.state-normal {
+  border-color: #E5E2D9;
+}
+
+.barn-card.state-warning {
+  border-color: #D4A017;
+}
+
+.barn-card.state-emergency {
+  border-color: #DC2626;
+}
+
+/* Top Row: Sensor Name + Title on Left, Status Pill on Right */
+.barn-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.chip-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #7D8590;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+/* Status Pill Badge (Top Right) */
+.state-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.state-badge.normal {
+  background-color: #DCFCE7;
+  color: #15803D;
+}
+
+.state-badge.warning {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.state-badge.emergency {
+  background-color: #FEE2E2;
+  color: #B91C1C;
+}
+
+/* Middle Row: Large Serif Value + Unit on Left, Delta on Right */
+.barn-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.barn-number {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0F2942;
+  line-height: 1;
+}
+
+.barn-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #64748B;
+  margin-left: 6px;
+}
+
+.barn-delta {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748B;
+}
+
+/* Progress Bar Track & Indicator */
+.barn-track {
+  position: relative;
+  width: 100%;
+  height: 7px;
+  background-color: #EAE6DA;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+
+.barn-track-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.barn-track-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: left 0.3s ease, background-color 0.3s ease;
+}
+
+/* Shaded Sparkline Chart Container */
+.sparkline-box {
+  width: 100%;
+  height: 68px;
+  background-color: #ECFDF3;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.barn-card.state-warning .sparkline-box {
+  background-color: #F4F7EE;
+}
+
+.barn-card.state-emergency .sparkline-box {
+  background-color: #FEF2F2;
+}
+
+/* Bottom Footer Text */
+.barn-card-footer {
+  font-size: 0.78rem;
+  color: #7D8590;
+  font-weight: 500;
+}
+
+
+.explorer-container,
+.diagnostics-container,
+.alerts-container {
+  padding: 28px 36px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.explorer-container .header h1,
+.diagnostics-container .header h1,
+.alerts-container .header h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0F2942;
+  margin: 0 0 6px 0;
+}
+
+.explorer-container .header p,
+.diagnostics-container .header p,
+.alerts-container .header p {
+  font-size: 0.9rem;
+  color: #64748B;
+  margin: 0 0 22px 0;
+}
+
+/* White Control Card */
+.control-panel {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E2D9;
+  border-radius: 16px;
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  box-shadow: 0 2px 6px rgba(15, 41, 66, 0.04);
+}
+
+/* Start Time, End Time & Fetch Button Row */
+.date-selectors {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #032B5E;
+}
+
+.input-group input[type="datetime-local"] {
+  padding: 9px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1E293B;
+  background-color: #FFFFFF;
+  min-width: 215px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-group input[type="datetime-local"]:focus {
+  border-color: #0055B8;
+}
+
+/* Blue Fetch Data Button */
+.fetch-btn {
+  background-color: #0055B8;
+  color: #FFFFFF;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  height: 39px;
+}
+
+.fetch-btn:hover:not(:disabled) {
+  background-color: #004799;
+}
+
+.fetch-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Pill-Shaped Checkboxes for Sensor Toggles */
+.sensor-toggles .toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background-color: #F7F5EE;
+  border: 1px solid #E5E2D9;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #1E293B;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.sensor-toggles .toggle-label:hover {
+  background-color: #EFECE1;
+  border-color: #CBD5E1;
+}
+
+.sensor-toggles .toggle-label input[type="checkbox"] {
+  accent-color: #0055B8;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Empty State Box */
+.empty-state {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E2D9;
+  border-radius: 16px;
+  padding: 54px 24px;
+  text-align: center;
+  color: #7D8590;
+  font-size: 0.92rem;
+  box-shadow: 0 2px 6px rgba(15, 41, 66, 0.04);
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+/* Mobile Responsive Adjustments for History Explorer */
+@media (max-width: 768px) {
+  .explorer-container,
+  .diagnostics-container,
+  .alerts-container {
+    padding: 16px;
+  }
+
+  .date-selectors {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input-group input[type="datetime-local"] {
+    width: 100%;
+  }
+
+  .fetch-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

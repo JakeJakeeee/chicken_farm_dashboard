@@ -23,57 +23,75 @@ export default function ThresholdModal({
           </button>
         </div>
 
-        {/* EMAIL NOTIFICATION SETTINGS (Option B: Synced to Node-RED) */}
+        {/* EMAIL & SYSTEM ALERT SETTINGS */}
         <div className="email-alert-config-box">
           <div className="email-config-top">
-            <label className="toggle-label" style={{ fontWeight: 700, color: '#032B5E' }}>
-              <input
-                type="checkbox"
-                checked={emailConfig.enabled}
-                onChange={(e) => onUpdateEmailConfig({ ...emailConfig, enabled: e.target.checked })}
-              />
-              Enable Email Alerts in Node-RED
-            </label>
+            <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+              <label className="toggle-label" style={{ fontWeight: 700, color: '#032B5E' }}>
+                <input
+                  type="checkbox"
+                  checked={emailConfig.enabled}
+                  onChange={(e) => onUpdateEmailConfig({ ...emailConfig, enabled: e.target.checked })}
+                />
+                Enable Email Alerts
+              </label>
+
+              <label className="toggle-label" style={{ fontWeight: 700, color: '#032B5E' }}>
+                <input
+                  type="checkbox"
+                  checked={emailConfig.systemAlertsEnabled !== false}
+                  onChange={(e) => onUpdateEmailConfig({ ...emailConfig, systemAlertsEnabled: e.target.checked })}
+                />
+                Enable System Alerts (Log to DB)
+              </label>
+            </div>
+
             <button
               type="button"
               className="secondary-pill-btn"
               onClick={onTestEmail}
               style={{ padding: '4px 12px', fontSize: '0.78rem' }}
             >
-              ✉ Send Test Email
+              ✉ Send Test Alert
             </button>
           </div>
 
-          {emailConfig.enabled && (
-            <div className="email-config-inputs">
+          <div className="email-config-inputs" style={{ marginTop: '12px' }}>
+            {emailConfig.enabled && (
               <div className="email-field">
                 <span>Recipient Email:</span>
                 <input
                   type="email"
-                  placeholder="farmer@example.com"
+                  placeholder="farmaircondition@gmail.com"
                   value={emailConfig.email}
                   onChange={(e) => onUpdateEmailConfig({ ...emailConfig, email: e.target.value })}
                   className="thresh-text-input"
                 />
               </div>
-              <div className="email-field">
-                <span>Node-RED Sync URL:</span>
-                <input
-                  type="text"
-                  placeholder="http://localhost:1880/api/update-thresholds"
-                  value={emailConfig.syncUrl}
-                  onChange={(e) => onUpdateEmailConfig({ ...emailConfig, syncUrl: e.target.value })}
-                  className="thresh-text-input"
-                />
-              </div>
+            )}
+
+            <div className="email-field">
+              <span>Cooldown Between Alerts (Minutes):</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={emailConfig.cooldownMinutes ?? 15}
+                onChange={(e) => onUpdateEmailConfig({ ...emailConfig, cooldownMinutes: Number(e.target.value) })}
+                className="thresh-text-input"
+                style={{ width: '110px' }}
+              />
             </div>
-          )}
+          </div>
         </div>
 
         {/* SENSOR LIST */}
         <div className="threshold-list-scroll">
           {Object.keys(sensorConfigs).map((k) => {
             const cfg = sensorConfigs[k];
+            // Default alertTrigger to warning threshold if not explicitly set yet
+            const alertTriggerVal = cfg.thresholds.alertTrigger ?? cfg.thresholds.warning;
+
             return (
               <div key={k} className="threshold-row">
                 <div className="threshold-sensor-info">
@@ -82,9 +100,12 @@ export default function ThresholdModal({
                   <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
                     Scale: {cfg.min} to {cfg.max} {cfg.unit}
                   </div>
+                  <div style={{ fontSize: '0.75rem', color: '#004799', fontWeight: 600, marginTop: '4px' }}>
+                    🔔 Triggers Alert at: &ge; {alertTriggerVal} {cfg.unit}
+                  </div>
                 </div>
 
-                {/* 2x2 Grid for Min/Max Range & Warning/Emergency Thresholds */}
+                {/* Controls Grid: Min, Max, Warning, Emergency, and Alert Trigger */}
                 <div className="thresh-controls-grid">
                   <label className="thresh-label range-label">
                     <span>Min Scale:</span>
@@ -127,6 +148,31 @@ export default function ThresholdModal({
                       className="thresh-input"
                       value={cfg.thresholds.danger}
                       onChange={(e) => onUpdateSensor(k, 'danger', e.target.value)}
+                    />
+                  </label>
+
+                  {/* NEW: Custom Threshold Value that Triggers Email & System Alert */}
+                  <label
+                    className="thresh-label"
+                    style={{
+                      gridColumn: '1 / -1',
+                      width: '100%',
+                      backgroundColor: '#EFF6FF',
+                      border: '1px solid #ebecee',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      color: '#1E40AF',
+                      marginTop: '4px'
+                    }}
+                  >
+                    <span>🔔 Email & System Alert Trigger ({cfg.unit}):</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="thresh-input"
+                      style={{ borderColor: '#032261', color: '#3e4f7a', backgroundColor: '#FFFFFF' }}
+                      value={alertTriggerVal}
+                      onChange={(e) => onUpdateSensor(k, 'alertTrigger', e.target.value)}
                     />
                   </label>
                 </div>
