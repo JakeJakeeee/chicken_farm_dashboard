@@ -1,320 +1,419 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SensorCard from '../components/SensorCard';
-import Header from '../components/Header';
 
-const GAUGE_CONFIG = {
-  sht_temp: { title: 'SHT31 Temp', key: 'sht_temperature', unit: '°C', min: 0, max: 50, thresholds: { warning: 28, danger: 35 }, statusKey: 'sht_status' },
-  bmp_temp: { title: 'BMP390 Temp', key: 'bmp_temperature', unit: '°C', min: 0, max: 50, thresholds: { warning: 28, danger: 35 }, statusKey: 'bmp_status' },
-  scd_temp: { title: 'SCD41 Temp', key: 'scd_temperature', unit: '°C', min: 0, max: 50, thresholds: { warning: 28, danger: 35 }, statusKey: 'scd_status' },
-  sht_hum: { title: 'SHT31 Hum', key: 'sht_humidity', unit: '%', min: 0, max: 100, thresholds: { warning: 65, danger: 80 }, statusKey: 'sht_status' },
-  scd_hum: { title: 'SCD41 Hum', key: 'scd_humidity', unit: '%', min: 0, max: 100, thresholds: { warning: 65, danger: 80 }, statusKey: 'scd_status' },
-  ammonia: { title: 'Ammonia (NH3)', key: 'mq137_ammonia', unit: 'ppm', min: 0, max: 30, thresholds: { warning: 10, danger: 20 }, statusKey: 'mq_status' },
-  co2: { title: 'Carbon Dioxide', key: 'scd_co2', unit: 'ppm', min: 0, max: 5000, thresholds: { warning: 1500, danger: 3000 }, statusKey: 'scd_status' },
-  pressure: { title: 'Air Pressure', key: 'bmp_pressure', unit: 'hPa', min: 700, max: 1100, thresholds: null, statusKey: 'bmp_status' },
-  airflow: { title: 'Air Velocity', key: 'fs_airflow', unit: 'm/s', min: 0, max: 7.5, thresholds: null, statusKey: 'fs_status' }
+const DEFAULT_GAUGE_CONFIG = {
+  ammonia:  { sensor: 'MQ137',      title: 'Ammonia (NH3)',  key: 'mq137_ammonia',   unit: 'ppm', min: 0,   max: 20,   thresholds: { warning: 10,   danger: 20 },   statusKey: 'mq_status',  category: 'Gases',               color: '#DC2626' },
+  airflow:  { sensor: 'FS3000',     title: 'Air Velocity',   key: 'fs_airflow',      unit: 'm/s', min: 0.1, max: 2.5,  thresholds: { warning: 2.0,  danger: 2.5 },  statusKey: 'fs_status',  category: 'Air flow & pressure', color: '#0284C7' },
+  sht_temp: { sensor: 'SHT31',      title: 'Temperature',    key: 'sht_temperature', unit: '°C',  min: 18,  max: 30,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'sht_status', category: 'Temperature',         color: '#E11D48' },
+  bmp_temp: { sensor: 'BMP390',     title: 'Temperature',    key: 'bmp_temperature', unit: '°C',  min: 18,  max: 30,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'bmp_status', category: 'Temperature',         color: '#7C3AED' },
+  scd_temp: { sensor: 'SCD41',      title: 'Temperature',    key: 'scd_temperature', unit: '°C',  min: 18,  max: 30,   thresholds: { warning: 28,   danger: 32 },   statusKey: 'scd_status', category: 'Temperature',         color: '#D97706' },
+  sht_hum:  { sensor: 'SHT31',      title: 'Humidity',       key: 'sht_humidity',    unit: '%',   min: 40,  max: 70,   thresholds: { warning: 65,   danger: 80 },   statusKey: 'sht_status', category: 'Humidity',            color: '#2563EB' },
+  scd_hum:  { sensor: 'SCD41',      title: 'Humidity',       key: 'scd_humidity',    unit: '%',   min: 40,  max: 70,   thresholds: { warning: 65,   danger: 80 },   statusKey: 'scd_status', category: 'Humidity',            color: '#0D9488' },
+  co2:      { sensor: 'SCD41',      title: 'Carbon Dioxide', key: 'scd_co2',         unit: 'ppm', min: 400, max: 2500, thresholds: { warning: 1500, danger: 2500 }, statusKey: 'scd_status', category: 'Gases',               color: '#1E293B' },
+  pressure: { sensor: 'BMP390',     title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1025, thresholds: { warning: 1020, danger: 1030 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
 };
 
-const CHART_WIDGETS = {
-  temp: { title: 'Temperature Comparison (°C)', lines: [{ key: 'sht_temperature', color: '#e74c3c', name: 'SHT31 Temp' }, { key: 'bmp_temperature', color: '#8e44ad', name: 'BMP390 Temp' }, { key: 'scd_temperature', color: '#f39c12', name: 'SCD41 Temp' }] },
-  hum: { title: 'Humidity Comparison (%)', lines: [{ key: 'sht_humidity', color: '#3498db', name: 'SHT31 Hum' }, { key: 'scd_humidity', color: '#1abc9c', name: 'SCD41 Hum' }] },
-  co2: { title: 'Carbon Dioxide - CO2 (ppm)', lines: [{ key: 'scd_co2', color: '#2c3e50', name: 'CO2 Levels' }] },
-  ammonia: { title: 'Ammonia Gas - NH3 (ppm)', lines: [{ key: 'mq137_ammonia', color: '#e74c3c', name: 'Ammonia Levels' }] },
-  airflow: { title: 'Air Velocity (m/s)', lines: [{ key: 'fs_airflow', color: '#1abc9c', name: 'Air Speed' }] },
-  pressure: { title: 'Air Pressure (hPa)', lines: [{ key: 'bmp_pressure', color: '#34495e', name: 'Pressure' }] }
-};
+// Helper: Parse row timestamp into milliseconds
+function parseRowTimestampMs(row) {
+  if (!row || !row.timestamp) return null;
+  if (typeof row.timestamp === 'number') {
+    return row.timestamp < 1e12 ? row.timestamp * 1000 : row.timestamp;
+  }
+  const parsed = Date.parse(row.timestamp);
+  return isNaN(parsed) ? null : parsed;
+}
 
-export default function LiveDashboard({ latestData, dataHistory }) {
-  const [isCustomizing, setIsCustomizing] = useState(false);
+export default function LiveDashboard({ latestData, dataHistory = [] }) {
+  const [activeCategory, setActiveCategory] = useState('All readings');
+  const [timeWindow, setTimeWindow] = useState('0.5h'); // '0.5h' (30 mins) or '1h' (60 mins)
+  const [showThresholdModal, setShowThresholdModal] = useState(false);
+  const [isCustomizingTab, setIsCustomizingTab] = useState(false);
 
-  // MATRIX DRAG REFS
-  const dragType = useRef(null); 
-  const dragGaugeItem = useRef(null);
-  const dragGaugeOverItem = useRef(null);
-  const dragChartItem = useRef(null);
-  const dragChartOverItem = useRef(null);
-
-  // VISIBILITY LAYOUTS
-  const [dashboardLayout, setDashboardLayout] = useState(() => {
-    const saved = localStorage.getItem('farmDashboardLayoutV6');
-    return saved ? JSON.parse(saved) : {
-      gauge_sht_temp: true, gauge_bmp_temp: true, gauge_scd_temp: true,
-      gauge_sht_hum: true, gauge_scd_hum: true, gauge_ammonia: true,
-      gauge_co2: true, gauge_pressure: true, gauge_airflow: true,
-      chart_temp: true, chart_hum: true, chart_co2: true,
-      chart_ammonia: true, chart_airflow: true, chart_pressure: true
-    };
+  // Load customizable thresholds from localStorage
+  const [sensorConfigs, setSensorConfigs] = useState(() => {
+    const saved = localStorage.getItem('farmThresholdsV7');
+    return saved ? JSON.parse(saved) : DEFAULT_GAUGE_CONFIG;
   });
 
-  const [gaugeSlots, setGaugeSlots] = useState(() => {
-    const saved = localStorage.getItem('farmGaugeMatrixSlotsV6');
-    return saved ? JSON.parse(saved) : [
-      'sht_hum', 'sht_temp', 'scd_temp', 'co2', 'bmp_temp', 'scd_hum', 'ammonia', 
-      'airflow', 'pressure', null, null, null, null, null                       
-    ];
-  });
-
-  const [chartOrder, setChartOrder] = useState(() => {
-    const saved = localStorage.getItem('farmChartOrderMatrixV6');
-    return saved ? JSON.parse(saved) : Object.keys(CHART_WIDGETS);
-  });
-
-  const [hiddenLines, setHiddenLines] = useState(() => {
-    const saved = localStorage.getItem('farmHiddenChartLinesV2');
-    return saved ? JSON.parse(saved) : {};
+  // Visibility toggles for multiple sensors in Temperature & Humidity tabs
+  const [visibleMultiSensors, setVisibleMultiSensors] = useState({
+    sht_temp: true,
+    bmp_temp: true,
+    scd_temp: true,
+    sht_hum: true,
+    scd_hum: true
   });
 
   useEffect(() => {
-    localStorage.setItem('farmDashboardLayoutV6', JSON.stringify(dashboardLayout));
-    localStorage.setItem('farmGaugeMatrixSlotsV6', JSON.stringify(gaugeSlots));
-    localStorage.setItem('farmChartOrderMatrixV6', JSON.stringify(chartOrder));
-    localStorage.setItem('farmHiddenChartLinesV2', JSON.stringify(hiddenLines)); 
-  }, [dashboardLayout, gaugeSlots, chartOrder, hiddenLines]);
+    localStorage.setItem('farmThresholdsV7', JSON.stringify(sensorConfigs));
+  }, [sensorConfigs]);
 
-  const handleLegendClick = (e) => {
-    if (!isCustomizing) return; 
-    setHiddenLines(prev => ({
+  // 1. FILTER DATA HISTORY BY 0.5h (30 min) OR 1h (60 min) WINDOW
+  const windowedHistory = useMemo(() => {
+    if (!dataHistory || dataHistory.length === 0) return [];
+    const windowMs = timeWindow === '0.5h' ? 30 * 60 * 1000 : 60 * 60 * 1000;
+    const latestMs = parseRowTimestampMs(dataHistory[dataHistory.length - 1]);
+
+    if (latestMs) {
+      const cutoff = latestMs - windowMs;
+      const filtered = dataHistory.filter(r => {
+        const t = parseRowTimestampMs(r);
+        return t ? t >= cutoff : true;
+      });
+      if (filtered.length > 0) return filtered;
+    }
+
+    // Fallback by sample count (at 20s per sample: 0.5h = 90 samples, 1h = 180 samples)
+    const maxSamples = timeWindow === '0.5h' ? 90 : 180;
+    return dataHistory.slice(-maxSamples);
+  }, [dataHistory, timeWindow]);
+
+  // 2. FORMULA: CALCULATE AVERAGE READING FOR ALL SENSORS IN SELECTED TIME RANGE (0.5h / 1h)
+  const averagedData = useMemo(() => {
+    if (!windowedHistory.length) return latestData || {};
+    const result = { ...latestData };
+
+    Object.values(sensorConfigs).forEach(cfg => {
+      const validNums = windowedHistory
+        .map(row => Number(row[cfg.key]))
+        .filter(val => !isNaN(val));
+
+      if (validNums.length > 0) {
+        const sum = validNums.reduce((acc, curr) => acc + curr, 0);
+        result[cfg.key] = sum / validNums.length;
+      }
+    });
+    return result;
+  }, [windowedHistory, latestData, sensorConfigs]);
+
+  // 3. FORMULA: CALCULATE POULTRY BARN AIR QUALITY SCORE (0 - 100)
+  const airQuality = useMemo(() => {
+    const nh3 = Number(averagedData?.mq137_ammonia ?? 0);
+    const co2 = Number(averagedData?.scd_co2 ?? 400);
+    const temp = Number(averagedData?.sht_temperature ?? 25);
+    const hum = Number(averagedData?.sht_humidity ?? 50);
+    const air = Number(averagedData?.fs_airflow ?? 1.0);
+
+    const clamp = (val) => Math.max(0, Math.min(100, val));
+
+    // Sub-index calculations (100 = ideal, 0 = at or beyond danger threshold)
+    const sNh3  = clamp(100 - (nh3 / (sensorConfigs.ammonia.thresholds.danger || 20)) * 100);
+    const sCo2  = clamp(100 - (Math.max(0, co2 - 400) / ((sensorConfigs.co2.thresholds.danger || 2500) - 400)) * 100);
+    const sTemp = clamp(100 - (Math.abs(temp - 24) / 10) * 100);
+    const sHum  = clamp(100 - (Math.abs(hum - 55) / 30) * 100);
+    const sAir  = clamp((air / 1.5) * 100);
+
+    const score = Math.round(
+      0.35 * sNh3 +
+      0.25 * sCo2 +
+      0.20 * sTemp +
+      0.10 * sHum +
+      0.10 * sAir
+    );
+
+    let label = 'Good';
+    let color = '#16A34A'; // Green
+    if (score < 50) {
+      label = 'Emergency';
+      color = '#DC2626'; // Red
+    } else if (score < 75) {
+      label = 'Fair';
+      color = '#D4A017'; // Yellow
+    }
+
+    return { score, label, color };
+  }, [averagedData, sensorConfigs]);
+
+  const categories = ['All readings', 'Temperature', 'Humidity', 'Gases', 'Air flow & pressure'];
+
+  // Filter sensors by active tab + multi-sensor customize checkboxes
+  const displayedSensorKeys = Object.keys(sensorConfigs).filter(k => {
+    const cfg = sensorConfigs[k];
+    if (activeCategory !== 'All readings' && cfg.category !== activeCategory) return false;
+    if ((activeCategory === 'Temperature' || activeCategory === 'Humidity') && visibleMultiSensors[k] === false) {
+      return false;
+    }
+    return true;
+  });
+
+  const handleThresholdEdit = (sensorKey, level, newVal) => {
+    setSensorConfigs(prev => ({
       ...prev,
-      [e.dataKey]: !prev[e.dataKey]
+      [sensorKey]: {
+        ...prev[sensorKey],
+        thresholds: {
+          ...prev[sensorKey].thresholds,
+          [level]: Number(newVal)
+        }
+      }
     }));
   };
 
-  const dragGaugeStart = (e, position) => { 
-    dragType.current = 'gauge';
-    dragGaugeItem.current = position; 
-    e.target.style.opacity = 0.5; 
-  };
-  
-  const dragGaugeEnter = (e, position) => { 
-    if (dragType.current !== 'gauge') return; 
-    dragGaugeOverItem.current = position; 
-  };
-  
-  const dropGauge = (e) => {
-    e.preventDefault();
-    if (dragType.current !== 'gauge' || dragGaugeItem.current === null || dragGaugeOverItem.current === null) return;
-    
-    const copySlots = [...gaugeSlots];
-    const sourceData = copySlots[dragGaugeItem.current];
-    
-    copySlots[dragGaugeItem.current] = copySlots[dragGaugeOverItem.current];
-    copySlots[dragGaugeOverItem.current] = sourceData;
-    
-    setGaugeSlots(copySlots);
-    resetDragState();
-  };
-
-  const dragChartStart = (e, position) => { 
-    dragType.current = 'chart'; 
-    dragChartItem.current = position; 
-    e.target.style.opacity = 0.5; 
-  };
-  
-  const dragChartEnter = (e, position) => { 
-    if (dragType.current !== 'chart') return;
-    dragChartOverItem.current = position; 
-  };
-  
-  const dropChart = (e) => {
-    e.preventDefault();
-    if (dragType.current !== 'chart' || dragChartItem.current === null || dragChartOverItem.current === null) return;
-    
-    const copyCharts = [...chartOrder];
-    const dragData = copyCharts[dragChartItem.current];
-    
-    copyCharts.splice(dragChartItem.current, 1);
-    copyCharts.splice(dragChartOverItem.current, 0, dragData);
-    
-    setChartOrder(copyCharts);
-    resetDragState();
-  };
-
-  const resetDragState = () => {
-    dragType.current = null;
-    dragGaugeItem.current = null;
-    dragGaugeOverItem.current = null;
-    dragChartItem.current = null;
-    dragChartOverItem.current = null;
-  };
-
-  const handleLayoutToggle = (key) => setDashboardLayout(prev => ({ ...prev, [key]: !prev[key] }));
+  const isMultiSensorTab = activeCategory === 'Temperature' || activeCategory === 'Humidity';
 
   return (
-    <div className="dashboard-container" style={{ padding: '20px', backgroundColor: '#f8f9fa' }}>
-      
-      <Header 
-        title="Live Telemetry" 
-        subtitle="Farm data" 
-        actionButton={
-          <button onClick={() => setIsCustomizing(!isCustomizing)} style={{ backgroundColor: isCustomizing ? '#e74c3c' : '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-            {isCustomizing ? 'Lock Layout' : 'Customize Dashboard'}
-          </button>
-        } 
-      />
+    <div className="live-dashboard-wrapper">
+      {/* Top Live Status Line */}
+      <div className="live-meta-line">
+        <span>
+          
+        </span>
+      </div>
 
-      {isCustomizing && (
-        <div style={{ background: '#ecf0f1', padding: '20px', borderRadius: '10px', marginBottom: '25px', border: '1px solid #bdc3c7' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
-            
-            <div>
-              <h4 style={{ margin: '0 0 12px 0', color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '5px' }}>Toggle Gauge Blocks:</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.keys(GAUGE_CONFIG).map((key) => (
-                  <label key={key} style={{ background: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '0.9rem' }}>
-                    <input type="checkbox" checked={dashboardLayout[`gauge_${key}`]} onChange={() => handleLayoutToggle(`gauge_${key}`)} style={{ marginRight: '8px' }} />
-                    {GAUGE_CONFIG[key].title}
-                  </label>
-                ))}
-              </div>
-            </div>
+      {/* Main Header Row */}
+      <div className="barn-header-row">
+        <div className="barn-title-group">
+          <h1 className="barn-main-title">Barn air today</h1>
 
-            <div>
-              <h4 style={{ margin: '0 0 12px 0', color: '#2c3e50', borderBottom: '2px solid #e67e22', paddingBottom: '5px' }}>Toggle Historical Charts:</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.keys(CHART_WIDGETS).map((key) => (
-                  <label key={key} style={{ background: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '0.9rem' }}>
-                    <input type="checkbox" checked={dashboardLayout[`chart_${key}`]} onChange={() => handleLayoutToggle(`chart_${key}`)} style={{ marginRight: '8px' }} />
-                    {CHART_WIDGETS[key].title.split(' (')[0]}
-                  </label>
-                ))}
-              </div>
+          {/* Air Quality Score Badge */}
+          <div className="aqi-widget">
+            <div className="aqi-ring" style={{ borderColor: airQuality.color }}>
+              {airQuality.score}
             </div>
-            
+            <div className="aqi-meta">
+              <span className="aqi-caption">AIR QUALITY SCORE</span>
+              <span className="aqi-status-text" style={{ color: airQuality.color }}>
+                {airQuality.label}
+              </span>
+            </div>
           </div>
+        </div>
+
+        <div className="header-actions">
+          {/* Show Customize Button inside Temperature & Humidity tabs */}
+          {isMultiSensorTab && (
+            <button
+              className="secondary-pill-btn"
+              onClick={() => setIsCustomizingTab(!isCustomizingTab)}
+            >
+              {isCustomizingTab ? '✓ Done Customizing' : `⚙ Customize ${activeCategory} Sensors`}
+            </button>
+          )}
+
+          <button className="primary-pill-btn" onClick={() => setShowThresholdModal(true)}>
+            <span> slider</span> Alert thresholds
+          </button>
+        </div>
+      </div>
+
+      {/* Category Tabs (Left) & 0.5h / 1h Average Selector (Right) */}
+      <div className="filter-bar-row">
+        <div className="pill-group">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              className={`pill-tab-btn ${activeCategory === cat ? 'active' : ''}`}
+              onClick={() => {
+                setActiveCategory(cat);
+                setIsCustomizingTab(false);
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 0.5h and 1h Average Time Range Selector */}
+        <div className="pill-group">
+          {['0.5h', '1h'].map(win => (
+            <button
+              key={win}
+              className={`pill-tab-btn ${timeWindow === win ? 'active' : ''}`}
+              onClick={() => setTimeWindow(win)}
+            >
+              {win}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Customize Drawer for Temperature & Humidity Multi-Sensor Toggles */}
+      {isMultiSensorTab && isCustomizingTab && (
+        <div className="customize-drawer">
+          <strong style={{ fontSize: '0.9rem', color: '#032B5E' }}>
+            Select {activeCategory} Sensors to Display:
+          </strong>
+          {Object.keys(sensorConfigs)
+            .filter(k => sensorConfigs[k].category === activeCategory)
+            .map(k => (
+              <label key={k} className="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={visibleMultiSensors[k] !== false}
+                  onChange={() =>
+                    setVisibleMultiSensors(prev => ({ ...prev, [k]: !prev[k] }))
+                  }
+                />
+                {sensorConfigs[k].sensor} {sensorConfigs[k].title}
+              </label>
+            ))}
         </div>
       )}
 
-      <h3 style={{ color: '#2c3e50', marginBottom: '15px', fontSize: '1.2rem' }}>Sensor Telemetry Blocks</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
-        {gaugeSlots.map((gaugeKey, index) => {
-          if (gaugeKey) {
-            const config = GAUGE_CONFIG[gaugeKey];
-            if (!config) return null; 
-            if (!dashboardLayout[`gauge_${gaugeKey}`]) return null;
-            
-            return (
-              <div key={gaugeKey}
-                draggable={isCustomizing}
-                onDragStart={(e) => dragGaugeStart(e, index)}
-                onDragEnter={(e) => dragGaugeEnter(e, index)}
-                onDragEnd={(e) => { e.target.style.opacity = 1; resetDragState(); }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={dropGauge}
-                style={{
-                  background: 'white', border: isCustomizing ? '2px dashed #3498db' : '1px solid #e2e8f0',
-                  borderRadius: '10px', padding: '15px 10px', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', height: '170px', cursor: isCustomizing ? 'grab' : 'default',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.02)', boxSizing: 'border-box',
-                  minWidth: 0, minHeight: 0, overflow: 'hidden'
-                }}
-              >
-                <SensorCard title={config.title} value={latestData?.[config.key]} unit={config.unit} min={config.min} max={config.max} thresholds={config.thresholds} status={latestData?.[config.statusKey]} isCustomizing={isCustomizing} />
-              </div>
-            );
-          } else {
-            return (
-              <div key={`empty_${index}`}
-                onDragEnter={(e) => dragGaugeEnter(e, index)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={dropGauge}
-                style={{
-                  height: '170px', borderRadius: '10px',
-                  border: isCustomizing ? '2px dashed #cbd5e1' : '2px solid transparent',
-                  background: isCustomizing ? '#f1f5f9' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#94a3b8', fontSize: '1.5rem', fontWeight: 'bold'
-                }}
-              >
-                {isCustomizing ? '＋' : ''}
-              </div>
-            );
-          }
+      {/* Sensor Cards Grid */}
+      <div className="sensor-cards-grid">
+        {displayedSensorKeys.map(k => {
+          const cfg = sensorConfigs[k];
+          const series = windowedHistory
+            .map(r => Number(r[cfg.key]))
+            .filter(v => !isNaN(v));
+
+          return (
+            <SensorCard
+              key={k}
+              sensorName={cfg.sensor}
+              title={cfg.title}
+              value={averagedData?.[cfg.key]}
+              unit={cfg.unit}
+              min={cfg.min}
+              max={cfg.max}
+              thresholds={cfg.thresholds}
+              status={latestData?.[cfg.statusKey]}
+              historyValues={series}
+              showInlineChart={activeCategory === 'All readings'}
+              windowLabel={timeWindow}
+            />
+          );
         })}
       </div>
 
-      <h3 style={{ color: '#2c3e50', marginBottom: '15px', fontSize: '1.2rem' }}>Historical Analysis Charts</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
-        {chartOrder.map((chartKey, index) => {
-          const config = CHART_WIDGETS[chartKey];
-          if (!config) return null;
-          if (!dashboardLayout[`chart_${chartKey}`]) return null;
-
-          //Only 'temp' and 'hum' charts are toggleable
-          const isToggleable = chartKey === 'temp' || chartKey === 'hum';
-
-          return (
-            <div key={chartKey}
-              draggable={isCustomizing}
-              onDragStart={(e) => dragChartStart(e, index)}
-              onDragEnter={(e) => dragChartEnter(e, index)}
-              onDragEnd={(e) => { e.target.style.opacity = 1; resetDragState(); }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={dropChart}
-              style={{
-                background: 'white', padding: '20px', borderRadius: '12px',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.04)', height: '340px',
-                border: isCustomizing ? '2px dashed #e67e22' : '1px solid #e2e8f0',
-                cursor: isCustomizing ? 'grab' : 'default', display: 'flex', flexDirection: 'column',
-                minWidth: 0, minHeight: 0, overflow: 'hidden'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#334155' }}>{config.title}</h3>
-                {isCustomizing && <span style={{ color: '#e67e22', fontWeight: 'bold', fontSize: '0.9rem' }}>⠿ Drag Chart</span>}
-              </div>
-              <div style={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', overflow: 'hidden' }}>
+      {/* SEPARATE LINE CHARTS WITH TIMESTAMPS (Shown only in specific category tabs) */}
+      {activeCategory !== 'All readings' && (
+        <div>
+          {/* Combined Comparison Chart for Temperature or Humidity */}
+          {isMultiSensorTab ? (
+            <div className="separate-chart-card">
+              <h3 className="metric-heading" style={{ marginBottom: '16px' }}>
+                {activeCategory} Comparison Chart — Timestamped ({timeWindow} Window)
+              </h3>
+              <div style={{ width: '100%', height: '340px' }}>
                 <ResponsiveContainer width="99%" height="99%">
-                  <LineChart data={dataHistory}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                  <LineChart data={windowedHistory}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EAE6DA" />
+                    <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#6B7280" />
                     <Tooltip isAnimationActive={false} />
-                    
-                    <Legend 
-                      wrapperStyle={{ 
-                        fontSize: '12px', 
-                        marginTop: '5px', 
-                        cursor: (isCustomizing && isToggleable) ? 'pointer' : 'default', 
-                        userSelect: 'none' 
-                      }} 
-                      onClick={(e) => {
-                        if (isToggleable) handleLegendClick(e);
-                      }}
-                      formatter={(value, entry) => {
-                        const isHidden = hiddenLines[entry.dataKey];
-                        const showCheckbox = isCustomizing && isToggleable;
-                        return (
-                          <span style={{ 
-                            color: isHidden ? '#94a3b8' : '#334155', 
-                            fontWeight: isHidden ? 'normal' : '500',
-                            transition: 'all 0.2s ease'
-                          }}>
-                            {showCheckbox ? (isHidden ? '☐ ' : '☑ ') : ''}{value}
-                          </span>
-                        );
-                      }}
-                    />
-                    
-                    {config.lines.map((line) => (
-                      <Line 
-                        key={line.key} 
-                        type="monotone" 
-                        dataKey={line.key} 
-                        stroke={line.color} 
-                        name={line.name} 
-                        strokeWidth={2.5} 
-                        dot={{ r: 3 }} 
-                        isAnimationActive={false} 
-                        hide={hiddenLines[line.key] === true} 
-                      />
-                    ))}
+                    <Legend />
+                    {displayedSensorKeys.map(k => {
+                      const cfg = sensorConfigs[k];
+                      return (
+                        <Line
+                          key={k}
+                          type="monotone"
+                          dataKey={cfg.key}
+                          name={`${cfg.sensor} ${cfg.title} (${cfg.unit})`}
+                          stroke={cfg.color}
+                          strokeWidth={2.5}
+                          dot={{ r: 2 }}
+                          isAnimationActive={false}
+                        />
+                      );
+                    })}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            /* Individual Timestamped Charts for Gases and Air flow & pressure */
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
+              {displayedSensorKeys.map(k => {
+                const cfg = sensorConfigs[k];
+                return (
+                  <div key={k} className="separate-chart-card">
+                    <h3 className="metric-heading" style={{ marginBottom: '16px' }}>
+                      {cfg.sensor} {cfg.title} ({cfg.unit}) — Timestamped ({timeWindow})
+                    </h3>
+                    <div style={{ width: '100%', height: '300px' }}>
+                      <ResponsiveContainer width="99%" height="99%">
+                        <LineChart data={windowedHistory}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#EAE6DA" />
+                          <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="#6B7280" />
+                          <Tooltip isAnimationActive={false} />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey={cfg.key}
+                            name={`${cfg.sensor} ${cfg.title}`}
+                            stroke={cfg.color}
+                            strokeWidth={2.5}
+                            dot={{ r: 2 }}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ALERT THRESHOLDS MODAL */}
+      {showThresholdModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 className="metric-heading" style={{ fontSize: '1.4rem' }}>
+                Alert Thresholds (Green / Yellow / Red)
+              </h3>
+              <button
+                onClick={() => setShowThresholdModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {Object.keys(sensorConfigs).map(k => {
+              const cfg = sensorConfigs[k];
+              return (
+                <div key={k} className="threshold-row">
+                  <div>
+                    <div className="chip-label">{cfg.sensor}</div>
+                    <strong>{cfg.title} ({cfg.unit})</strong>
+                  </div>
+
+                  <div className="thresh-input-group">
+                    <label style={{ color: '#B45309', fontWeight: 600 }}>
+                      Warning (Yellow):
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="thresh-input"
+                        style={{ marginLeft: '6px' }}
+                        value={cfg.thresholds.warning}
+                        onChange={e => handleThresholdEdit(k, 'warning', e.target.value)}
+                      />
+                    </label>
+
+                    <label style={{ color: '#B91C1C', fontWeight: 600 }}>
+                      Emergency (Red):
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="thresh-input"
+                        style={{ marginLeft: '6px' }}
+                        value={cfg.thresholds.danger}
+                        onChange={e => handleThresholdEdit(k, 'danger', e.target.value)}
+                      />
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '18px' }}>
+              <button className="primary-pill-btn" onClick={() => setShowThresholdModal(false)}>
+                Save & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,83 +1,138 @@
 import React from 'react';
-import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-export default function SensorCard({ title, value, unit, min, max, thresholds, status, isCustomizing }) {
-  if (value === undefined || value === null) return null;
+export default function SensorCard({
+  sensorName,
+  title,
+  value,
+  unit,
+  min,
+  max,
+  thresholds,
+  status,
+  historyValues = [],
+  showInlineChart = true,
+  windowLabel = '0.5h'
+}) {
+  if (value === undefined || value === null || isNaN(value)) return null;
 
-  // NUCLEAR FIX: Added constraints to prevent Recharts from bursting the flex container
-  const innerContainerStyle = {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    boxSizing: 'border-box',
-    minWidth: 0,
-    minHeight: 0,
-    overflow: 'hidden'
-  };
-
+  // Offline check
   if (status === 0) {
     return (
-      <div style={innerContainerStyle}>
-        <div style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 'bold', color: '#c0392b', minHeight: '34px', display: 'flex', alignItems: 'center' }}>
-          {title}
+      <div className="barn-card state-emergency">
+        <div className="barn-card-top">
+          <div>
+            <div className="chip-label">{sensorName}</div>
+            <h3 className="metric-heading">{title}</h3>
+          </div>
+          <span className="state-badge emergency">Offline</span>
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#e74c3c' }}>⚠️ OFFLINE</span>
-          <span style={{ fontSize: '0.75rem', color: '#95a5a6', marginTop: '2px' }}>Check Node</span>
+        <div style={{ padding: '24px 0', textAlign: 'center', color: '#DC2626', fontWeight: 700 }}>
+          ⚠️ SENSOR OFFLINE
         </div>
       </div>
     );
   }
 
-  const normalizedValue = Math.max(0, value - min);
-  const normalizedMax = max - min;
-  let displayValue = normalizedValue > normalizedMax ? normalizedMax : normalizedValue;
+  // Evaluate Threshold Status: Normal (Green) | Warning (Yellow) | Emergency (Red)
+  let healthState = 'normal';
+  let stateText = 'Normal';
+  let accentColor = '#16A34A'; // Green
+  let areaFill = 'rgba(22, 163, 74, 0.12)';
 
-  let gaugeColor = "#3498db"; 
   if (thresholds) {
-    gaugeColor = "#2ecc71"; 
-    if (value >= thresholds.warning) gaugeColor = "#f1c40f"; 
-    if (value >= thresholds.danger) gaugeColor = "#e74c3c"; 
+    if (value >= thresholds.danger) {
+      healthState = 'emergency';
+      stateText = 'Emergency';
+      accentColor = '#DC2626'; // Red
+      areaFill = 'rgba(220, 38, 38, 0.14)';
+    } else if (value >= thresholds.warning) {
+      healthState = 'warning';
+      stateText = 'Warning';
+      accentColor = '#D4A017'; // Yellow
+      areaFill = 'rgba(212, 160, 23, 0.15)';
+    }
   }
 
-  const data = [{ name: title, value: displayValue }, { name: "Empty", value: normalizedMax - displayValue }];
+  // Trend delta calculation from recent readings
+  const pts = historyValues.length >= 2 ? historyValues : [value, value];
+  const prevVal = pts[pts.length - 2];
+  const diff = value - prevVal;
+  let deltaText = '— Steady';
+  if (Math.abs(diff) >= 0.01) {
+    const arrow = diff > 0 ? '↑' : '↓';
+    deltaText = `${arrow} ${Math.abs(diff).toFixed(unit === 'ppm' && max > 500 ? 0 : 2)} ${unit}`;
+  }
+
+  // Progress bar percentage
+  const span = max - min <= 0 ? 1 : max - min;
+  const pct = Math.min(100, Math.max(0, ((value - min) / span) * 100));
+
+  // Build SVG Sparkline path for "All readings" mode
+  const svgW = 300;
+  const svgH = 60;
+  const minPt = Math.min(...pts);
+  const maxPt = Math.max(...pts);
+  const ptRange = maxPt - minPt === 0 ? 1 : maxPt - minPt;
+
+  const coords = pts.map((v, idx) => [
+    (idx / (pts.length - 1)) * svgW,
+    svgH - ((v - minPt) / ptRange) * (svgH - 12) - 6
+  ]);
+  const linePath = coords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${svgW} ${svgH} L 0 ${svgH} Z`;
+
+  const decimals = unit === 'ppm' && max > 500 ? 0 : 2;
 
   return (
-    <div style={innerContainerStyle}>
-      <div style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        {isCustomizing && <span style={{ color: '#3498db' }}>⠿</span>} {title}
-      </div>
-      
-      <div style={{ position: 'relative', width: '100%', height: '110px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
-        {/* 99% Hack eliminates float-pixel rounding loops */}
-        <ResponsiveContainer width="99%" height="99%">
-          <PieChart>
-            <Pie 
-              data={data} 
-              cx="50%" 
-              cy="100%" 
-              startAngle={180} 
-              endAngle={0} 
-              innerRadius={52}  
-              outerRadius={75}  
-              dataKey="value" 
-              stroke="none" 
-              isAnimationActive={false} // Leave False. It prevents freezing on fast data updates.
-            >
-              <Cell fill={gaugeColor} />
-              <Cell fill="#f1f5f9" />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        
-        <div style={{ position: 'absolute', bottom: '-4px', textAlign: 'center', width: '100%' }}>
-          <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#1e293b' }}>{value}</span>
-          <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '2px', fontWeight: '600' }}>{unit}</span>
+    <div className={`barn-card state-${healthState}`}>
+      <div>
+        <div className="barn-card-top">
+          <div>
+            <div className="chip-label">{sensorName}</div>
+            <h3 className="metric-heading">{title}</h3>
+          </div>
+          <span className={`state-badge ${healthState}`}>{stateText}</span>
+        </div>
+
+        <div className="barn-value-row">
+          <div>
+            <span className="barn-number">{Number(value).toFixed(decimals)}</span>
+            <span className="barn-unit">{unit}</span>
+          </div>
+          <span className="barn-delta">{deltaText}</span>
+        </div>
+
+        <div className="barn-track">
+          <div
+            className="barn-track-fill"
+            style={{ width: `${pct}%`, backgroundColor: accentColor }}
+          />
+          <div
+            className="barn-track-dot"
+            style={{ left: `${pct}%`, backgroundColor: accentColor }}
+          />
         </div>
       </div>
+
+      {showInlineChart && (
+        <div>
+          <div className="sparkline-box">
+            <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" height="100%" preserveAspectRatio="none">
+              <path d={areaPath} fill={areaFill} />
+              <path d={linePath} fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="barn-card-footer">
+            Safe range {min}–{thresholds ? thresholds.warning : max} {unit} · avg window {windowLabel}
+          </div>
+        </div>
+      )}
+
+      {!showInlineChart && (
+        <div className="barn-card-footer">
+          Warning: {thresholds?.warning ?? '--'} {unit} · Emergency: {thresholds?.danger ?? '--'} {unit} ({windowLabel} avg)
+        </div>
+      )}
     </div>
   );
 }
