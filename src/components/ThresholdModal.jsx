@@ -89,8 +89,8 @@ export default function ThresholdModal({
         <div className="threshold-list-scroll">
           {Object.keys(sensorConfigs).map((k) => {
             const cfg = sensorConfigs[k];
-            // Default alertTrigger to warning threshold if not explicitly set yet
-            const alertTriggerVal = cfg.thresholds.alertTrigger ?? cfg.thresholds.warning;
+            const lowTrigger = cfg.thresholds.lowTrigger ?? cfg.min;
+            const highTrigger = cfg.thresholds.highTrigger ?? cfg.thresholds.warning;
 
             return (
               <div key={k} className="threshold-row">
@@ -98,14 +98,14 @@ export default function ThresholdModal({
                   <div className="chip-label">{cfg.sensor}</div>
                   <strong>{cfg.title} ({cfg.unit})</strong>
                   <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
-                    Scale: {cfg.min} to {cfg.max} {cfg.unit}
+                    Gauge Scale: {cfg.min} to {cfg.max} {cfg.unit}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#004799', fontWeight: 600, marginTop: '4px' }}>
-                    🔔 Triggers Alert at: &ge; {alertTriggerVal} {cfg.unit}
+                    🔔 Safe Window: {lowTrigger} – {highTrigger} {cfg.unit}
                   </div>
                 </div>
 
-                {/* Controls Grid: Min, Max, Warning, Emergency, and Alert Trigger */}
+                {/* Controls Grid */}
                 <div className="thresh-controls-grid">
                   <label className="thresh-label range-label">
                     <span>Min Scale:</span>
@@ -151,28 +151,46 @@ export default function ThresholdModal({
                     />
                   </label>
 
-                  {/* NEW: Custom Threshold Value that Triggers Email & System Alert */}
+                  {/* NEW: Lower & Upper Alert Triggers */}
                   <label
                     className="thresh-label"
                     style={{
-                      gridColumn: '1 / -1',
-                      width: '100%',
                       backgroundColor: '#EFF6FF',
-                      border: '1px solid #ebecee',
-                      padding: '6px 10px',
+                      border: '1px solid #BFDBFE',
+                      padding: '5px 8px',
                       borderRadius: '8px',
-                      color: '#1E40AF',
-                      marginTop: '4px'
+                      color: '#1E40AF'
                     }}
                   >
-                    <span>🔔 Email & System Alert Trigger ({cfg.unit}):</span>
+                    <span>🔻 Low Trigger (&lt;):</span>
                     <input
                       type="number"
                       step="0.1"
                       className="thresh-input"
-                      style={{ borderColor: '#032261', color: '#3e4f7a', backgroundColor: '#FFFFFF' }}
-                      value={alertTriggerVal}
-                      onChange={(e) => onUpdateSensor(k, 'alertTrigger', e.target.value)}
+                      style={{ borderColor: '#3B82F6', backgroundColor: '#FFFFFF' }}
+                      value={lowTrigger}
+                      onChange={(e) => onUpdateSensor(k, 'lowTrigger', e.target.value)}
+                    />
+                  </label>
+
+                  <label
+                    className="thresh-label"
+                    style={{
+                      backgroundColor: '#EFF6FF',
+                      border: '1px solid #BFDBFE',
+                      padding: '5px 8px',
+                      borderRadius: '8px',
+                      color: '#1E40AF'
+                    }}
+                  >
+                    <span>🔺 High Trigger (&ge;):</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="thresh-input"
+                      style={{ borderColor: '#3B82F6', backgroundColor: '#FFFFFF' }}
+                      value={highTrigger}
+                      onChange={(e) => onUpdateSensor(k, 'highTrigger', e.target.value)}
                     />
                   </label>
                 </div>

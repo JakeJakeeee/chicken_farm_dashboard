@@ -5,15 +5,15 @@ import ThresholdModal from '../components/ThresholdModal';
 
 
 const DEFAULT_GAUGE_CONFIG = {
-  ammonia:  { sensor: 'MQ137',  title: 'Ammonia (NH3)',  key: 'mq137_ammonia',   unit: 'ppm', min: 0,   max: 30,   thresholds: { warning: 10,   danger: 20,   alertTrigger: 10 },   statusKey: 'mq_status',  category: 'Gases',               color: '#DC2626' },
-  airflow:  { sensor: 'FS3000', title: 'Air Velocity',   key: 'fs_airflow',      unit: 'm/s', min: 0.1, max: 2.5,  thresholds: { warning: 2.0,  danger: 2.5,  alertTrigger: 2.0 },  statusKey: 'fs_status',  category: 'Air flow & pressure', color: '#0284C7' },
-  sht_temp: { sensor: 'SHT31',  title: 'Temperature',    key: 'sht_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   alertTrigger: 28 },   statusKey: 'sht_status', category: 'Temperature',         color: '#E11D48' },
-  bmp_temp: { sensor: 'BMP390', title: 'Temperature',    key: 'bmp_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   alertTrigger: 28 },   statusKey: 'bmp_status', category: 'Temperature',         color: '#7C3AED' },
-  scd_temp: { sensor: 'SCD41',  title: 'Temperature',    key: 'scd_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   alertTrigger: 28 },   statusKey: 'scd_status', category: 'Temperature',         color: '#D97706' },
-  sht_hum:  { sensor: 'SHT31',  title: 'Humidity',       key: 'sht_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   alertTrigger: 65 },   statusKey: 'sht_status', category: 'Humidity',            color: '#2563EB' },
-  scd_hum:  { sensor: 'SCD41',  title: 'Humidity',       key: 'scd_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   alertTrigger: 65 },   statusKey: 'scd_status', category: 'Humidity',            color: '#0D9488' },
-  co2:      { sensor: 'SCD41',  title: 'Carbon Dioxide', key: 'scd_co2',         unit: 'ppm', min: 400, max: 2500, thresholds: { warning: 1500, danger: 2500, alertTrigger: 1500 }, statusKey: 'scd_status', category: 'Gases',               color: '#1E293B' },
-  pressure: { sensor: 'BMP390', title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1035, thresholds: { warning: 1020, danger: 1030, alertTrigger: 1020 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
+  ammonia:  { sensor: 'MQ137',  title: 'Ammonia (NH3)',  key: 'mq137_ammonia',   unit: 'ppm', min: 0,   max: 30,   thresholds: { warning: 10,   danger: 20,   lowTrigger: 0,   highTrigger: 10 },   statusKey: 'mq_status',  category: 'Gases',               color: '#DC2626' },
+  airflow:  { sensor: 'FS3000', title: 'Air Velocity',   key: 'fs_airflow',      unit: 'm/s', min: 0.1, max: 2.5,  thresholds: { warning: 2.0,  danger: 2.5,  lowTrigger: 0.5, highTrigger: 2.0 },  statusKey: 'fs_status',  category: 'Air flow & pressure', color: '#0284C7' },
+  sht_temp: { sensor: 'SHT31',  title: 'Temperature',    key: 'sht_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'sht_status', category: 'Temperature',         color: '#E11D48' },
+  bmp_temp: { sensor: 'BMP390', title: 'Temperature',    key: 'bmp_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'bmp_status', category: 'Temperature',         color: '#7C3AED' },
+  scd_temp: { sensor: 'SCD41',  title: 'Temperature',    key: 'scd_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'scd_status', category: 'Temperature',         color: '#D97706' },
+  sht_hum:  { sensor: 'SHT31',  title: 'Humidity',       key: 'sht_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   lowTrigger: 45,  highTrigger: 65 },   statusKey: 'sht_status', category: 'Humidity',            color: '#2563EB' },
+  scd_hum:  { sensor: 'SCD41',  title: 'Humidity',       key: 'scd_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   lowTrigger: 45,  highTrigger: 65 },   statusKey: 'scd_status', category: 'Humidity',            color: '#0D9488' },
+  co2:      { sensor: 'SCD41',  title: 'Carbon Dioxide', key: 'scd_co2',         unit: 'ppm', min: 400, max: 2500, thresholds: { warning: 1500, danger: 2500, lowTrigger: 400, highTrigger: 1500 }, statusKey: 'scd_status', category: 'Gases',               color: '#1E293B' },
+  pressure: { sensor: 'BMP390', title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1035, thresholds: { warning: 1020, danger: 1030, lowTrigger: 995, highTrigger: 1020 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
 };
 
 function parseRowTimestampMs(row) {
@@ -82,7 +82,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
   const [filterAttentionOnly, setFilterAttentionOnly] = useState(false);
 
   const [sensorConfigs, setSensorConfigs] = useState(() => {
-    const saved = localStorage.getItem('farmThresholdsV8');
+    const saved = localStorage.getItem('farmThresholdsV9');
     return saved ? JSON.parse(saved) : DEFAULT_GAUGE_CONFIG;
   });
 
@@ -104,7 +104,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
   });
 
   useEffect(() => {
-    localStorage.setItem('farmThresholdsV8', JSON.stringify(sensorConfigs));
+    localStorage.setItem('farmThresholdsV9', JSON.stringify(sensorConfigs));
   }, [sensorConfigs]);
 
   useEffect(() => {
@@ -276,22 +276,24 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return { score, label };
   }, [currentCardData, sensorConfigs]);
 
-  // 4. DETECT SENSORS THAT NEED ATTENTION
+// 4. DETECT SENSORS THAT NEED ATTENTION (Checks both Low and High Triggers)
   const attentionItems = useMemo(() => {
     const issues = [];
     Object.keys(sensorConfigs).forEach(k => {
       const cfg = sensorConfigs[k];
       const val = Number(currentCardData?.[cfg.key]);
       if (!isNaN(val)) {
-        const triggerLimit = cfg.thresholds.alertTrigger ?? cfg.thresholds.warning;
-        if (val >= triggerLimit || (k === 'airflow' && val < 0.5)) {
+        const lowLimit = cfg.thresholds.lowTrigger ?? cfg.min;
+        const highLimit = cfg.thresholds.highTrigger ?? cfg.thresholds.warning;
+
+        if (val < lowLimit || val >= highLimit) {
           const isDanger = val >= cfg.thresholds.danger;
           issues.push({
             key: k,
             level: isDanger ? 'EMERGENCY' : 'WARNING',
             value: val.toFixed(2),
             unit: cfg.unit,
-            threshold: triggerLimit,
+            threshold: val < lowLimit ? lowLimit : highLimit,
             title: `${cfg.sensor} ${cfg.title}`,
             message: getDiagnosticMessage(k, val)
           });

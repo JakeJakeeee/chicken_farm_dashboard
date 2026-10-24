@@ -13,28 +13,34 @@ export default function SensorCard({
   showInlineChart = true,
   windowLabel = 'Live'
 }) {
-  // Default to 0 if value is missing so the card never disappears
   const numericValue = value !== undefined && value !== null && !isNaN(Number(value))
     ? Number(value)
     : 0;
 
-  // Green = Normal, Yellow = Warning, Red = Emergency
   let healthState = 'normal';
   let stateText = status === 0 ? 'Check Sensor' : 'Normal';
   let accentColor = '#16A34A'; // Green
-  let areaFill = 'rgba(22, 163, 74, 0.12)';
+  let areaFill = 'rgba(22, 163, 74, 0.14)';
+
+  const lowTrigger = thresholds?.lowTrigger ?? min;
+  const highTrigger = thresholds?.highTrigger ?? thresholds?.warning ?? max;
 
   if (thresholds) {
-    if (numericValue >= thresholds.danger) {
+    const isBelowLow = numericValue < lowTrigger;
+    const isAboveHigh = numericValue >= highTrigger;
+    const isAboveWarning = numericValue >= thresholds.warning;
+    const isAboveDanger = numericValue >= thresholds.danger;
+
+    if (isAboveDanger) {
       healthState = 'emergency';
       stateText = 'Emergency';
       accentColor = '#DC2626'; // Red
-      areaFill = 'rgba(220, 38, 38, 0.14)';
-    } else if (numericValue >= thresholds.warning) {
+      areaFill = 'rgba(220, 38, 38, 0.15)';
+    } else if (isBelowLow || isAboveHigh || isAboveWarning) {
       healthState = 'warning';
-      stateText = 'Warning';
-      accentColor = '#D4A017'; // Yellow
-      areaFill = 'rgba(212, 160, 23, 0.15)';
+      stateText = isBelowLow ? 'Low Alert' : 'Near limit';
+      accentColor = '#D4A017'; // Amber/Gold
+      areaFill = 'rgba(212, 160, 23, 0.18)';
     }
   }
 
@@ -107,14 +113,14 @@ export default function SensorCard({
             </svg>
           </div>
           <div className="barn-card-footer">
-            Safe range {min}–{thresholds ? thresholds.warning : max} {unit} · Mode: {windowLabel} ({pts.length} pts)
+            Safe range {lowTrigger}–{highTrigger} {unit} · Mode: {windowLabel} ({pts.length} pts)
           </div>
         </div>
       )}
 
       {!showInlineChart && (
         <div className="barn-card-footer">
-          Warning: {thresholds?.warning ?? '--'} {unit} · Emergency: {thresholds?.danger ?? '--'} {unit} ({windowLabel})
+          Low Trigger: &lt;{lowTrigger} {unit} · High Trigger: &ge;{highTrigger} {unit} ({windowLabel})
         </div>
       )}
     </div>
