@@ -42,12 +42,20 @@ export default function Sidebar({ activeTab, setActiveTab, handleLogout, isOpen,
           <span className="menu-icon">🎛️</span>
           {isOpen && <span>Hardware Status</span>}
         </button>
+
+        <button
+           className={activeTab === 'map' ? 'nav-btn active' : 'nav-btn'}
+           onClick={() => setActiveTab('map')}
+        >
+          🗺️ Farm Map
+        </button>
         
         <button 
           className={`menu-btn ${activeTab === 'alerts' ? 'active' : ''}`} 
           onClick={() => setActiveTab('alerts')}
           title="System Alerts"
         >
+          
           <span className="menu-icon">🔔</span>
           {isOpen && <span>System Alerts</span>}
           {alertCount > 0 && (

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SensorCard from '../components/SensorCard';
 import ThresholdModal from '../components/ThresholdModal';
-import { HOUSE_CONFIGS } from '../config/farmConfigs';
+import AddHouseModal from '../components/AddHouseModal';
+import { DEFAULT_HOUSE_CONFIGS, createInactiveHouseData } from '../config/farmConfigs';
 
 const DEFAULT_GAUGE_CONFIG = {
   ammonia:  { sensor: 'MQ137',  title: 'Ammonia (NH3)',  key: 'mq137_ammonia',   unit: 'ppm', min: 0,   max: 30,   thresholds: { warning: 10,   danger: 20,   lowTrigger: 0,   highTrigger: 10 },   statusKey: 'mq_status',  category: 'Gases',               color: '#DC2626' },
@@ -16,8 +17,9 @@ const DEFAULT_GAUGE_CONFIG = {
   pressure: { sensor: 'BMP390', title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1035, thresholds: { warning: 1020, danger: 1030, lowTrigger: 995, highTrigger: 1020 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
 };
 
-// Automatically points to port 1880 on whatever machine/IP you open the dashboard from
-const NODE_RED_SYNC_URL = `http://${window.location.hostname || 'localhost'}:1880/api/update-thresholds`;
+const NODE_RED_BASE_URL = `http://${window.location.hostname || 'localhost'}:1880`;
+const NODE_RED_SYNC_URL = `${NODE_RED_BASE_URL}/api/update-thresholds`;
+const NODE_RED_HOUSES_URL = `${NODE_RED_BASE_URL}/api/houses`;
 
 function parseRowTimestampMs(row) {
   if (!row) return null;
@@ -101,17 +103,32 @@ function getDiagnosticMessage(sensorKey, val) {
 }
 
 export default function LiveDashboard({ latestData, dataHistory = [] }) {
+  const [houses, setHouses] = useState(() => {
+    const saved = localStorage.getItem('farmHousesV1');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return DEFAULT_HOUSE_CONFIGS;
+      }
+    }
+    return DEFAULT_HOUSE_CONFIGS;
+  });
+
   const [selectedHouseId, setSelectedHouseId] = useState('house1');
+  const [showAddHouseModal, setShowAddHouseModal] = useState(false);
+
   const [activeCategory, setActiveCategory] = useState('All readings');
-  const [timeWindow, setTimeWindow] = useState('Live'); // 'Live', '0.5h', '1h', 'Custom'
+  const [timeWindow, setTimeWindow] = useState('Live');
   const [customHours, setCustomHours] = useState(2);
   const [showThresholdModal, setShowThresholdModal] = useState(false);
   const [isCustomizingTab, setIsCustomizingTab] = useState(false);
   const [filterAttentionOnly, setFilterAttentionOnly] = useState(false);
 
-  const currentHouse = HOUSE_CONFIGS[selectedHouseId] || HOUSE_CONFIGS.house1;
-  const activeLatestData = currentHouse.isLive ? latestData : currentHouse.latestData;
-  const activeDataHistory = currentHouse.isLive ? dataHistory : currentHouse.dataHistory;
+  const currentHouse = houses[selectedHouseId] || houses.house1 || DEFAULT_HOUSE_CONFIGS.house1;
+  const inactiveFallback = useMemo(() => createInactiveHouseData(), []);
+  const activeLatestData = currentHouse.isLive ? latestData : (currentHouse.latestData || inactiveFallback);
+  const activeDataHistory = currentHouse.isLive ? dataHistory : (currentHouse.dataHistory || []);
 
   const [sensorConfigs, setSensorConfigs] = useState(() => {
     const saved = localStorage.getItem('farmThresholdsV10');
@@ -136,6 +153,10 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
   });
 
   useEffect(() => {
+    localStorage.setItem('farmHousesV1', JSON.stringify(houses));
+  }, [houses]);
+
+  useEffect(() => {
     localStorage.setItem('farmThresholdsV10', JSON.stringify(sensorConfigs));
   }, [sensorConfigs]);
 
@@ -147,46 +168,92 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     localStorage.setItem('farmEmailConfigV3', JSON.stringify(emailConfig));
   }, [emailConfig]);
 
-  // Helper function to sync directly to Node-RED
-  const syncToNodeRed = async (customThresholds, customEmailCfg, isTest = false) => {
-    const targetUrl = customEmailCfg?.syncUrl || NODE_RED_SYNC_URL;
+  const syncToNodeRed = async (customThresholds, customEmailCfg, isTest = false, customHouses = houses) => {
+    const targetUrl = NODE_RED_SYNC_URL;
     try {
       const res = await fetch(targetUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
         body: JSON.stringify({
           testEmail: isTest,
           thresholds: customThresholds,
-          emailConfig: customEmailCfg
+          emailConfig: customEmailCfg,
+          houses: customHouses
         })
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
-      console.log('Synced thresholds to Node-RED:', customThresholds);
+      console.log('✅ Synced configs & houses to Node-RED SQLite:', customHouses);
       if (isTest) {
         alert(`Test alert sent to Node-RED for ${customEmailCfg.email || 'default email'}!`);
       }
     } catch (err) {
-      console.error('Failed to sync thresholds to Node-RED:', err);
-      alert(`Could not sync to Node-RED at ${targetUrl}.\nMake sure Node-RED is running and deployed!`);
+      console.error('❌ Failed to sync to Node-RED:', err);
+      if (isTest) {
+        alert(`Could not sync to Node-RED at ${targetUrl}.\nMake sure Node-RED is running and deployed!`);
+      }
     }
   };
 
-  // Sync saved thresholds to Node-RED once when dashboard loads
   useEffect(() => {
-    const targetUrl = emailConfig?.syncUrl || NODE_RED_SYNC_URL;
-    fetch(targetUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        thresholds: sensorConfigs,
-        emailConfig: emailConfig
+    fetch(NODE_RED_HOUSES_URL)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((dbHouses) => {
+        if (dbHouses && Object.keys(dbHouses).length > 0) {
+          const hydrated = {};
+          Object.values(dbHouses).forEach((h) => {
+            hydrated[h.id] = {
+              ...h,
+              latestData: createInactiveHouseData(),
+              dataHistory: []
+            };
+          });
+          setHouses(hydrated);
+          syncToNodeRed(sensorConfigs, emailConfig, false, hydrated);
+        } else {
+          syncToNodeRed(sensorConfigs, emailConfig, false, houses);
+        }
       })
-    }).catch(() => {});
+      .catch(() => {
+        syncToNodeRed(sensorConfigs, emailConfig, false, houses);
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Chronological order (oldest -> newest)
+  const handleAddHouse = (newHouse) => {
+    const updatedHouses = {
+      ...houses,
+      [newHouse.id]: newHouse
+    };
+    setHouses(updatedHouses);
+    setSelectedHouseId(newHouse.id);
+    setFilterAttentionOnly(false);
+    syncToNodeRed(sensorConfigs, emailConfig, false, updatedHouses);
+  };
+
+  const handleDeleteHouse = (houseId) => {
+    if (houseId === 'house1') return;
+    const updatedHouses = { ...houses };
+    delete updatedHouses[houseId];
+    setHouses(updatedHouses);
+    if (selectedHouseId === houseId) {
+      setSelectedHouseId('house1');
+    }
+    syncToNodeRed(sensorConfigs, emailConfig, false, updatedHouses);
+  };
+
+  const handleToggleHouseLive = (houseId) => {
+    const updatedHouses = {
+      ...houses,
+      [houseId]: {
+        ...houses[houseId],
+        isLive: !houses[houseId].isLive
+      }
+    };
+    setHouses(updatedHouses);
+    syncToNodeRed(sensorConfigs, emailConfig, false, updatedHouses);
+  };
+
   const sortedHistory = useMemo(() => {
     if (!currentHouse.isLive) return [];
     if (!Array.isArray(activeDataHistory) || activeDataHistory.length === 0) {
@@ -197,7 +264,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return copy;
   }, [activeDataHistory, activeLatestData, currentHouse.isLive]);
 
-  // 1. CALCULATE START-ANCHORED INTERVAL BUCKET AVERAGES
   const bucketedSeries = useMemo(() => {
     if (!currentHouse.isLive || sortedHistory.length === 0) return [];
 
@@ -263,7 +329,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return averagedBuckets;
   }, [sortedHistory, timeWindow, customHours, sensorConfigs, currentHouse.isLive]);
 
-  // 2. TRUE TRAILING MOVING AVERAGE FOR CARDS & AQS
   const currentCardData = useMemo(() => {
     if (!currentHouse.isLive) {
       return activeLatestData || {};
@@ -306,7 +371,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return averagedResult;
   }, [sortedHistory, timeWindow, customHours, sensorConfigs, activeLatestData, currentHouse.isLive]);
 
-  // 3. POULTRY BARN AIR QUALITY SCORE (0 - 100)
   const airQuality = useMemo(() => {
     if (!currentHouse.isLive) {
       return { score: 0, label: 'Inactive' };
@@ -341,7 +405,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return { score, label };
   }, [currentCardData, sensorConfigs, currentHouse.isLive]);
 
-  // 4. DETECT SENSORS THAT NEED ATTENTION (Checks both Low and High Triggers)
   const attentionItems = useMemo(() => {
     if (!currentHouse.isLive) return [];
 
@@ -373,18 +436,15 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     return issues;
   }, [currentCardData, sensorConfigs, currentHouse.isLive]);
 
-  // 5. SYNC THRESHOLDS TO NODE-RED WHEN SAVING MODAL
   const handleCloseModalAndSync = () => {
     setShowThresholdModal(false);
-    syncToNodeRed(sensorConfigs, emailConfig, false);
+    syncToNodeRed(sensorConfigs, emailConfig, false, houses);
   };
 
-  // Send a test request to Node-RED
   const handleSendTestEmail = () => {
-    syncToNodeRed(sensorConfigs, emailConfig, true);
+    syncToNodeRed(sensorConfigs, emailConfig, true, houses);
   };
 
-  // Update min, max, warning, danger, lowTrigger, or highTrigger
   const handleSensorUpdate = (sensorKey, field, newVal) => {
     const numVal = newVal === '' ? '' : Number(newVal);
     setSensorConfigs(prev => {
@@ -430,7 +490,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
   return (
     <div className="live-dashboard-wrapper">
-      {/* Top Live Status Line */}
       <div className="live-meta-line">
         <span
           className="live-blue-dot"
@@ -444,24 +503,26 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
           </span>
         ) : (
           <span>
-            {currentHouse.name} · Status: <strong>Inactive</strong> (Sensor Node Not Deployed)
+            {currentHouse.name} · Status: <strong>Inactive</strong> (Sensor Node Not Deployed · Topic: {currentHouse.mqttTopic})
           </span>
         )}
       </div>
 
-      {/* MAIN HEADER ROW */}
       <div className="barn-header-row">
         <div className="barn-title-group">
           <h1 className="barn-main-title">Chicken Farm</h1>
         </div>
 
         <div className="header-actions">
-          {/* HOUSE SELECTION PILL DROPDOWN */}
           <select
             value={selectedHouseId}
             onChange={(e) => {
-              setSelectedHouseId(e.target.value);
-              setFilterAttentionOnly(false);
+              if (e.target.value === '__add_new__') {
+                setShowAddHouseModal(true);
+              } else {
+                setSelectedHouseId(e.target.value);
+                setFilterAttentionOnly(false);
+              }
             }}
             className="secondary-pill-btn"
             style={{
@@ -469,18 +530,19 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
               WebkitAppearance: 'none',
               MozAppearance: 'none',
               paddingRight: '32px',
-              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23032B5E' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3e%3C/polyline%3E%3C/svg%3e")`,
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23032B5E' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3e%3C/polyline%3E%3C/svg%3E")`,
               backgroundRepeat: 'no-repeat',
               backgroundPosition: 'right 12px center',
               backgroundSize: '14px',
               cursor: 'pointer'
             }}
           >
-            {Object.values(HOUSE_CONFIGS).map((house) => (
+            {Object.values(houses).map((house) => (
               <option key={house.id} value={house.id}>
                 {house.name}
               </option>
             ))}
+            <option value="__add_new__">+ Add / Manage Houses...</option>
           </select>
 
           {isCustomizableCategory && (
@@ -505,7 +567,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       </div>
 
-      {/* SUMMARY ROW */}
       <div className="dashboard-summary-row">
         {!currentHouse.isLive ? (
           <div className="attention-banner" style={{ backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' }}>
@@ -547,7 +608,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
           </div>
         )}
 
-        {/* HORIZONTAL BAR AIR QUALITY SCORE CARD */}
         <div className="aqs-bar-card">
           <div className="aqs-score-top">
             <span className="aqs-big-num">{currentHouse.isLive ? airQuality.score : '--'}</span>
@@ -569,7 +629,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       </div>
 
-      {/* CATEGORY TABS & MOVING AVERAGE SELECTOR */}
       <div className="filter-bar-row">
         <div className="pill-group">
           {categories.map(cat => (
@@ -616,7 +675,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       </div>
 
-      {/* Customize Drawer */}
       {isCustomizableCategory && isCustomizingTab && (
         <div className="customize-drawer">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '6px' }}>
@@ -660,7 +718,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       )}
 
-      {/* SENSOR CARDS GRID */}
       <div className="sensor-cards-grid">
         {displayedSensorKeys.map(k => {
           const cfg = sensorConfigs[k];
@@ -685,7 +742,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         })}
       </div>
 
-      {/* SEPARATE LINE CHARTS */}
       {activeCategory !== 'All readings' && (
         <div>
           {isMultiSensorTab ? (
@@ -757,7 +813,6 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       )}
 
-      {/* MOVING AVERAGE INTERVAL LOG TABLE */}
       {timeWindow !== 'Live' && bucketedSeries.length > 0 && (
         <div className="separate-chart-card" style={{ marginTop: '24px' }}>
           <h3 className="metric-heading" style={{ marginBottom: '12px' }}>
@@ -796,7 +851,15 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         </div>
       )}
 
-      {/* EXTRACTED ALERT THRESHOLDS MODAL */}
+      <AddHouseModal
+        isOpen={showAddHouseModal}
+        onClose={() => setShowAddHouseModal(false)}
+        houses={houses}
+        onAddHouse={handleAddHouse}
+        onDeleteHouse={handleDeleteHouse}
+        onToggleHouseLive={handleToggleHouseLive}
+      />
+
       <ThresholdModal
         isOpen={showThresholdModal}
         onClose={handleCloseModalAndSync}

@@ -4,6 +4,7 @@ import LiveDashboard from './pages/LiveDashboard';
 import Diagnostics from './pages/Diagnostics';
 import HistoryExplorer from './pages/HistoryExplorer';
 import Alerts from './pages/Alerts';
+import FarmMap from './pages/FarmMap';
 import './app.css';
 
 function App() {
@@ -106,6 +107,16 @@ function App() {
 
       <div className="main-content">
         {activeTab === 'live' && <LiveDashboard latestData={latestData} dataHistory={dataHistory} />}
+        {activeTab === 'map' && (
+          <FarmMap
+            latestData={latestData}
+            onSelectHouse={(houseId) => {
+              // Optional: if you want to store the selected house before switching tabs
+              localStorage.setItem('selectedFarmHouseId', houseId);
+              setActiveTab('live');
+            }}
+          />
+        )}
         {activeTab === 'explorer' && <HistoryExplorer />}
         {activeTab === 'diagnostics' && <Diagnostics latestData={latestData} />}
         {activeTab === 'alerts' && <Alerts alerts={alerts} />}
