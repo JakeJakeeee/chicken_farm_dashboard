@@ -1,79 +1,341 @@
 import React, { useState } from 'react';
-import { auth, googleProvider } from './firebase'; // Import the Google Key
-import { signInWithPopup, signOut } from 'firebase/auth'; // Import popup and logout tools
 
-function Login() {
-  const [loginError, setLoginError] = useState('');
+const NODE_RED_BASE_URL = `http://${window.location.hostname || 'localhost'}:1880`;
 
-  // This is your master key. Only this email is allowed inside!
-  const MASTER_EMAIL = "farmaircondition@gmail.com";
+// Native SHA-256 Password Hashing Function
+async function hashPassword(plainTextPassword) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plainTextPassword);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
-  const handleGoogleLogin = async () => {
+function Login({ onLoginSuccess }) {
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('operator');
+
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const cleanUsername = username.trim();
+    if (!cleanUsername || !password) {
+      setErrorMsg('Please enter both username and password.');
+      return;
+    }
+
+    if (isRegisterMode && password !== confirmPassword) {
+      setErrorMsg('Passwords do not match!');
+      return;
+    }
+
+    if (isRegisterMode && password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      setLoginError(''); // Clear old errors
-      
-      // 1. Open the Google Sign-In Popup
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      // 2. THE SECURITY CHECK (Whitelist)
-      // If the email they used doesn't perfectly match your master email...
-      if (result.user.email !== MASTER_EMAIL) {
-        // ...instantly kick them out!
-        await signOut(auth);
-        setLoginError("Access Denied: You do not have Admin privileges.");
-      }
-      
-      // If the email DOES match, the App.jsx file will automatically 
-      // see they are logged in and unlock the dashboard!
+      // Hash password with SHA-256 before sending to Node-RED SQLite
+      const passwordHash = await hashPassword(password);
 
-    } catch (error) {
-      console.error("Google Login Error:", error.code, error.message);
-      // Handle the case where they close the popup before signing in
-      if (error.code !== 'auth/popup-closed-by-user') {
-        setLoginError("Failed to connect to Google.");
+      if (isRegisterMode) {
+        // 1. REGISTER NEW USER IN SQLITE
+        const res = await fetch(`${NODE_RED_BASE_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: cleanUsername,
+            password_hash: passwordHash,
+            role: role
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setErrorMsg(data.message || 'Registration failed. Username may already exist.');
+        } else {
+          setSuccessMsg(`Account "${cleanUsername}" (${role}) created! You can now sign in.`);
+          setIsRegisterMode(false);
+          setPassword('');
+          setConfirmPassword('');
+        }
+      } else {
+        // 2. SIGN IN VIA SQLITE
+        const res = await fetch(`${NODE_RED_BASE_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: cleanUsername,
+            password_hash: passwordHash
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setErrorMsg(data.message || 'Access Denied: Invalid username or password.');
+        } else {
+          // Save session in localStorage and unlock App.jsx
+          localStorage.setItem('farmAuthUser', JSON.stringify(data.user));
+          if (onLoginSuccess) {
+            onLoginSuccess(data.user);
+          }
+        }
       }
+    } catch (err) {
+      console.error('Auth error:', err);
+      setErrorMsg('Cannot connect to Node-RED SQLite server at port 1880.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', textAlign: 'center', width: '320px' }}>
-        <h2>Admin Portal</h2>
-        <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>Chicken Farm Telemetry System</p>
-        
-        {/* The new Google Button */}
-        <button 
-          onClick={handleGoogleLogin} 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '10px', 
-            width: '100%', 
-            padding: '12px', 
-            backgroundColor: 'white', 
-            color: '#757575', 
-            border: '1px solid #ddd', 
-            borderRadius: '5px', 
-            fontSize: '16px', 
-            fontWeight: 'bold', 
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+    <div
+      className="dashboard-container"
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: '#F8FAFC',
+        padding: '20px'
+      }}
+    >
+      <div
+        style={{
+          background: 'white',
+          padding: '36px 32px',
+          borderRadius: '14px',
+          boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '380px',
+          border: '1px solid #E2E8F0'
+        }}
+      >
+        <div style={{ fontSize: '2.2rem', marginBottom: '6px' }}>🐔</div>
+        <h2 style={{ margin: '0 0 6px 0', color: '#0F172A' }}>
+          {isRegisterMode ? 'Register Account' : 'Farm Portal Login'}
+        </h2>
+        <p style={{ color: '#64748B', marginBottom: '20px', fontSize: '0.9rem' }}>
+          Chicken Farm Telemetry System (SQLite Auth)
+        </p>
+
+        {/* MODE SWITCH TABS */}
+        <div
+          style={{
+            display: 'flex',
+            background: '#F1F5F9',
+            borderRadius: '8px',
+            padding: '4px',
+            marginBottom: '20px'
           }}
         >
-          {/* A simple SVG of the Google 'G' logo */}
-          <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-          Sign in with Google
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegisterMode(false);
+              setErrorMsg('');
+              setSuccessMsg('');
+            }}
+            style={{
+              flex: 1,
+              padding: '8px',
+              borderRadius: '6px',
+              border: 'none',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              background: !isRegisterMode ? 'white' : 'transparent',
+              color: !isRegisterMode ? '#032B5E' : '#64748B',
+              boxShadow: !isRegisterMode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegisterMode(true);
+              setErrorMsg('');
+              setSuccessMsg('');
+            }}
+            style={{
+              flex: 1,
+              padding: '8px',
+              borderRadius: '6px',
+              border: 'none',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              background: isRegisterMode ? 'white' : 'transparent',
+              color: isRegisterMode ? '#032B5E' : '#64748B',
+              boxShadow: isRegisterMode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+            }}
+          >
+            Register User
+          </button>
+        </div>
 
-        {loginError && (
-          <div style={{ color: '#e74c3c', marginTop: '20px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-            {loginError}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+              Username
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. jiaming_admin"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                fontSize: '0.92rem',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              required
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                fontSize: '0.92rem',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {isRegisterMode && (
+            <>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.92rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  User Role
+                </label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.92rem',
+                    backgroundColor: 'white',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <option value="admin">Admin (Full Control)</option>
+                  <option value="operator">Farm Operator (Standard)</option>
+                  <option value="supervisor">Supervisor / Viewer</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            style={{
+              marginTop: '8px',
+              width: '100%',
+              padding: '11px',
+              backgroundColor: '#032B5E',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+          >
+            {isSubmitting
+              ? isRegisterMode
+                ? 'Registering...'
+                : 'Signing in...'
+              : isRegisterMode
+              ? 'Create Account'
+              : 'Sign In'}
+          </button>
+        </form>
+
+        {errorMsg && (
+          <div
+            style={{
+              color: '#B91C1C',
+              background: '#FEE2E2',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              marginTop: '16px',
+              fontSize: '0.84rem',
+              fontWeight: 600
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div
+            style={{
+              color: '#15803D',
+              background: '#DCFCE7',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              marginTop: '16px',
+              fontSize: '0.84rem',
+              fontWeight: 600
+            }}
+          >
+            {successMsg}
           </div>
         )}
       </div>

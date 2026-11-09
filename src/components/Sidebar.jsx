@@ -3,13 +3,12 @@ import React from 'react';
 export default function Sidebar({ activeTab, setActiveTab, handleLogout, isOpen, toggleSidebar, alertCount = 0 }) {
   return (
     <div className={`sidebar ${!isOpen ? 'collapsed' : ''}`}>
-      {/* Brand Header (Yellow logo stays visible when collapsed) */}
       <div className="sidebar-header">
-        <div className="sidebar-logo">🌱</div>
+        <div className="sidebar-logo">🐔</div>
         {isOpen && (
           <div className="sidebar-brand-text">
-            <h2>Farm IoT</h2>
-            <div className="sidebar-subtitle">Barn air monitor</div>
+            <h2>Farm</h2>
+            <div className="sidebar-subtitle">Chicken farm air monitor</div>
           </div>
         )}
       </div>
@@ -43,12 +42,15 @@ export default function Sidebar({ activeTab, setActiveTab, handleLogout, isOpen,
           {isOpen && <span>Hardware Status</span>}
         </button>
 
-        <button
-           className={activeTab === 'map' ? 'nav-btn active' : 'nav-btn'}
-           onClick={() => setActiveTab('map')}
+        <button 
+          className={`menu-btn ${activeTab === 'map' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('map')}
+          title="Hardware Status"
         >
-          🗺️ Farm Map
+          <span className="menu-icon">🗺️</span>
+          {isOpen && <span>Farm Map</span>}
         </button>
+
         
         <button 
           className={`menu-btn ${activeTab === 'alerts' ? 'active' : ''}`} 
@@ -69,7 +71,7 @@ export default function Sidebar({ activeTab, setActiveTab, handleLogout, isOpen,
       {/* Optional Logout Button */}
       {handleLogout && (
         <button onClick={handleLogout} className="logout-btn" title="Log out">
-          <span className="menu-icon">🚪</span>
+          <span className="menu-icon"></span>
           {isOpen && <span>Log out</span>}
         </button>
       )}

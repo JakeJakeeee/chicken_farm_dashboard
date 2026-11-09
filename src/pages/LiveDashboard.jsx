@@ -6,15 +6,18 @@ import AddHouseModal from '../components/AddHouseModal';
 import { DEFAULT_HOUSE_CONFIGS, createInactiveHouseData } from '../config/farmConfigs';
 
 const DEFAULT_GAUGE_CONFIG = {
-  ammonia:  { sensor: 'MQ137',  title: 'Ammonia (NH3)',  key: 'mq137_ammonia',   unit: 'ppm', min: 0,   max: 30,   thresholds: { warning: 10,   danger: 20,   lowTrigger: 0,   highTrigger: 10 },   statusKey: 'mq_status',  category: 'Gases',               color: '#DC2626' },
-  airflow:  { sensor: 'FS3000', title: 'Air Velocity',   key: 'fs_airflow',      unit: 'm/s', min: 0.1, max: 2.5,  thresholds: { warning: 2.0,  danger: 2.5,  lowTrigger: 0.5, highTrigger: 2.0 },  statusKey: 'fs_status',  category: 'Air flow & pressure', color: '#0284C7' },
-  sht_temp: { sensor: 'SHT31',  title: 'Temperature',    key: 'sht_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'sht_status', category: 'Temperature',         color: '#E11D48' },
-  bmp_temp: { sensor: 'BMP390', title: 'Temperature',    key: 'bmp_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'bmp_status', category: 'Temperature',         color: '#7C3AED' },
-  scd_temp: { sensor: 'SCD41',  title: 'Temperature',    key: 'scd_temperature', unit: '°C',  min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'scd_status', category: 'Temperature',         color: '#D97706' },
-  sht_hum:  { sensor: 'SHT31',  title: 'Humidity',       key: 'sht_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   lowTrigger: 45,  highTrigger: 65 },   statusKey: 'sht_status', category: 'Humidity',            color: '#2563EB' },
-  scd_hum:  { sensor: 'SCD41',  title: 'Humidity',       key: 'scd_humidity',    unit: '%',   min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   lowTrigger: 45,  highTrigger: 65 },   statusKey: 'scd_status', category: 'Humidity',            color: '#0D9488' },
-  co2:      { sensor: 'SCD41',  title: 'Carbon Dioxide', key: 'scd_co2',         unit: 'ppm', min: 400, max: 2500, thresholds: { warning: 1500, danger: 2500, lowTrigger: 400, highTrigger: 1500 }, statusKey: 'scd_status', category: 'Gases',               color: '#1E293B' },
-  pressure: { sensor: 'BMP390', title: 'Air Pressure',   key: 'bmp_pressure',    unit: 'hPa', min: 990, max: 1035, thresholds: { warning: 1020, danger: 1030, lowTrigger: 995, highTrigger: 1020 }, statusKey: 'bmp_status', category: 'Air flow & pressure', color: '#475569' }
+  ammonia:  { sensor: 'MQ137',  title: 'Ammonia (NH3)',     key: 'mq137_ammonia',   unit: 'ppm',   min: 0,   max: 30,   thresholds: { warning: 10,   danger: 20,   lowTrigger: 0,   highTrigger: 10 },   statusKey: 'mq_status',    category: 'Gases',               color: '#DC2626' },
+  airflow:  { sensor: 'SN3000', title: 'Air Velocity',      key: 'sn_airflow',      unit: 'm/s',   min: 0.1, max: 2.5,  thresholds: { warning: 2.0,  danger: 2.5,  lowTrigger: 0.5, highTrigger: 2.0 },  statusKey: 'sn_status',    category: 'Air flow & pressure', color: '#0284C7' },
+  sht_temp: { sensor: 'SHT31',  title: 'Temperature',       key: 'sht_temperature', unit: '°C',    min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'sht_status',   category: 'Temperature',         color: '#E11D48' },
+  bmp_temp: { sensor: 'BMP390', title: 'Temperature',       key: 'bmp_temperature', unit: '°C',    min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'bmp_status',   category: 'Temperature',         color: '#7C3AED' },
+  scd_temp: { sensor: 'SCD41',  title: 'Temperature',       key: 'scd_temperature', unit: '°C',    min: 18,  max: 35,   thresholds: { warning: 28,   danger: 32,   lowTrigger: 20,  highTrigger: 28 },   statusKey: 'scd_status',   category: 'Temperature',         color: '#D97706' },
+  sht_hum:  { sensor: 'SHT31',  title: 'Humidity',          key: 'sht_humidity',    unit: '%',     min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   lowTrigger: 45,  highTrigger: 65 },   statusKey: 'sht_status',   category: 'Humidity',            color: '#2563EB' },
+  scd_hum:  { sensor: 'SCD41',  title: 'Humidity',          key: 'scd_humidity',    unit: '%',     min: 40,  max: 90,   thresholds: { warning: 65,   danger: 80,   lowTrigger: 45,  highTrigger: 65 },   statusKey: 'scd_status',   category: 'Humidity',            color: '#0D9488' },
+  co2:      { sensor: 'SCD41',  title: 'Carbon Dioxide',    key: 'scd_co2',         unit: 'ppm',   min: 400, max: 2500, thresholds: { warning: 1500, danger: 2500, lowTrigger: 400, highTrigger: 1500 }, statusKey: 'scd_status',   category: 'Gases',               color: '#1E293B' },
+  pressure: { sensor: 'BMP390', title: 'Air Pressure',      key: 'bmp_pressure',    unit: 'hPa',   min: 990, max: 1035, thresholds: { warning: 1020, danger: 1030, lowTrigger: 995, highTrigger: 1020 }, statusKey: 'bmp_status',   category: 'Air flow & pressure', color: '#475569' },
+  power:    { sensor: 'PWR',    title: 'Power Consumption', key: 'power_val',       unit: 'W',     min: 0,   max: 3000, thresholds: { warning: 2000, danger: 2500, lowTrigger: 50,  highTrigger: 2000 }, statusKey: 'power_status', category: 'Utilities & Fans',    color: '#F59E0B' },
+  water:    { sensor: 'WTR',    title: 'Water Flow',        key: 'water_val',       unit: 'L/min', min: 0,   max: 30,   thresholds: { warning: 20,   danger: 25,   lowTrigger: 2.0, highTrigger: 20 },   statusKey: 'water_status', category: 'Utilities & Fans',    color: '#06B6D4' },
+  fan:      { sensor: 'FAN',    title: 'Exhaust Fan',       key: 'fan_val',         unit: 'RPM',   min: 0,   max: 2500, thresholds: { warning: 1800, danger: 2200, lowTrigger: 500, highTrigger: 1800 }, statusKey: 'fan_status',   category: 'Utilities & Fans',    color: '#10B981' }
 };
 
 const NODE_RED_BASE_URL = `http://${window.location.hostname || 'localhost'}:1880`;
@@ -97,6 +100,15 @@ function getDiagnosticMessage(sensorKey, val) {
     if (val < 0.5) return "Low air flow — check that the fans are running.";
     return "High air flow — check fan settings to prevent chilling.";
   }
+  if (sensorKey === 'power') return "Abnormal power consumption — inspect electrical loads, heaters, and breakers.";
+  if (sensorKey === 'water') {
+    if (val < 2.0) return "Low water flow — check drinker lines for blockages or pump failure.";
+    return "High water flow — inspect pipelines for potential leaks.";
+  }
+  if (sensorKey === 'fan') {
+    if (val < 500) return "Low exhaust fan RPM — check fan belt, motor relay, or power supply.";
+    return "High exhaust fan RPM — verify fan speed controller settings.";
+  }
   if (sensorKey.includes('temp')) return "Temperature out of bounds — check heaters or cooling pads.";
   if (sensorKey.includes('hum')) return "Humidity abnormal — inspect water lines for leaks or adjust ventilation.";
   return "Reading out of safe range — please inspect equipment.";
@@ -130,15 +142,30 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
   const activeLatestData = currentHouse.isLive ? latestData : (currentHouse.latestData || inactiveFallback);
   const activeDataHistory = currentHouse.isLive ? dataHistory : (currentHouse.dataHistory || []);
 
+  // Merge saved thresholds with DEFAULT_GAUGE_CONFIG so new sensors always appear
   const [sensorConfigs, setSensorConfigs] = useState(() => {
-    const saved = localStorage.getItem('farmThresholdsV10');
-    return saved ? JSON.parse(saved) : DEFAULT_GAUGE_CONFIG;
+    const saved = localStorage.getItem('farmThresholdsV11');
+    if (saved) {
+      try {
+        return { ...DEFAULT_GAUGE_CONFIG, ...JSON.parse(saved) };
+      } catch (e) {
+        return DEFAULT_GAUGE_CONFIG;
+      }
+    }
+    return DEFAULT_GAUGE_CONFIG;
   });
 
   const [visibleSensors, setVisibleSensors] = useState(() => {
-    const saved = localStorage.getItem('farmVisibleSensorsV1');
-    if (saved) return JSON.parse(saved);
-    return Object.keys(DEFAULT_GAUGE_CONFIG).reduce((acc, k) => ({ ...acc, [k]: true }), {});
+    const defaults = Object.keys(DEFAULT_GAUGE_CONFIG).reduce((acc, k) => ({ ...acc, [k]: true }), {});
+    const saved = localStorage.getItem('farmVisibleSensorsV2');
+    if (saved) {
+      try {
+        return { ...defaults, ...JSON.parse(saved) };
+      } catch (e) {
+        return defaults;
+      }
+    }
+    return defaults;
   });
 
   const [emailConfig, setEmailConfig] = useState(() => {
@@ -157,11 +184,11 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
   }, [houses]);
 
   useEffect(() => {
-    localStorage.setItem('farmThresholdsV10', JSON.stringify(sensorConfigs));
+    localStorage.setItem('farmThresholdsV11', JSON.stringify(sensorConfigs));
   }, [sensorConfigs]);
 
   useEffect(() => {
-    localStorage.setItem('farmVisibleSensorsV1', JSON.stringify(visibleSensors));
+    localStorage.setItem('farmVisibleSensorsV2', JSON.stringify(visibleSensors));
   }, [visibleSensors]);
 
   useEffect(() => {
@@ -170,6 +197,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
 
   const syncToNodeRed = async (customThresholds, customEmailCfg, isTest = false, customHouses = houses) => {
     const targetUrl = NODE_RED_SYNC_URL;
+    const syncTime = new Date().toLocaleString();
     try {
       const res = await fetch(targetUrl, {
         method: 'POST',
@@ -177,7 +205,9 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
         body: JSON.stringify({
           testEmail: isTest,
           thresholds: customThresholds,
-          emailConfig: customEmailCfg,
+          emailConfig: { ...customEmailCfg, lastSyncedAt: syncTime },
+          email: customEmailCfg?.email || 'farmaircondition@gmail.com',
+          time: syncTime,
           houses: customHouses
         })
       });
@@ -380,7 +410,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     const co2 = Number(currentCardData?.scd_co2 ?? 400);
     const temp = Number(currentCardData?.sht_temperature ?? 25);
     const hum = Number(currentCardData?.sht_humidity ?? 50);
-    const air = Number(currentCardData?.fs_airflow ?? 1.0);
+    const air = Number(currentCardData?.sn_airflow ?? 1.0);
 
     const clamp = (val) => Math.max(0, Math.min(100, val));
 
@@ -465,8 +495,8 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
     });
   };
 
-  const categories = ['All readings', 'Temperature', 'Humidity', 'Gases', 'Air flow & pressure'];
-  const isCustomizableCategory = ['All readings', 'Temperature', 'Humidity'].includes(activeCategory);
+  const categories = ['All readings', 'Temperature', 'Humidity', 'Gases', 'Air flow & pressure', 'Utilities & Fans'];
+  const isCustomizableCategory = ['All readings', 'Temperature', 'Humidity', 'Utilities & Fans'].includes(activeCategory);
 
   const displayedSensorKeys = Object.keys(sensorConfigs).filter(k => {
     const cfg = sensorConfigs[k];
@@ -836,7 +866,7 @@ export default function LiveDashboard({ latestData, dataHistory = [] }) {
                     <td>{row.sampleCount || 1} readings</td>
                     {displayedSensorKeys.map(k => {
                       const cfg = sensorConfigs[k];
-                      const decimals = cfg.unit === 'ppm' && cfg.max > 500 ? 0 : 2;
+                      const decimals = (cfg.unit === 'ppm' && cfg.max > 500) || cfg.unit === 'RPM' ? 0 : 2;
                       return (
                         <td key={k}>
                           {Number(row[cfg.key] ?? 0).toFixed(decimals)}

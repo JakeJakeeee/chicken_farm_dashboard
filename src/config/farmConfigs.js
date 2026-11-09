@@ -11,14 +11,20 @@ export function createInactiveHouseData() {
     bmp_temperature: null,
     bmp_pressure: null,
     bmp_status: 0,
-    fs_airflow: null,
-    fs_status: 0,
+    sn_airflow: null,
+    sn_status: 0,
     mq137_ammonia: null,
     mq_status: 0,
     scd_co2: null,
     scd_temperature: null,
     scd_humidity: null,
-    scd_status: 0
+    scd_status: 0,
+    power_val: 0,
+    power_status: 0,
+    water_val: 0,
+    water_status: 0,
+    fan_val: 0,
+    fan_status: 0,
   };
 }
 

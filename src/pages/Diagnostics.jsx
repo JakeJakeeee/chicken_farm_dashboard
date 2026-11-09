@@ -47,8 +47,8 @@ export default function Diagnostics({ latestData, alerts, setAlerts }) {
               <td style={{ color: latestData?.scd_status === 1 ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>{latestData?.scd_status === 1 ? '✅ ONLINE' : '❌ OFFLINE (Check Power)'}</td>
             </tr>
             <tr style={{ borderBottom: '1px solid #ecf0f1' }}>
-              <td style={{ padding: '12px', fontWeight: 'bold' }}>FS3000 (Airflow)</td><td>I2C</td><td>0x28</td>
-              <td style={{ color: latestData?.fs_status === 1 ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>{latestData?.fs_status === 1 ? '✅ ONLINE' : '❌ OFFLINE (Check Wiring)'}</td>
+              <td style={{ padding: '12px', fontWeight: 'bold' }}>SN3000 (Airflow)</td><td>I2C</td><td>0x28</td>
+              <td style={{ color: latestData?.sn_status === 1 ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>{latestData?.sn_status === 1 ? '✅ ONLINE' : '❌ OFFLINE (Check Wiring)'}</td>
             </tr>
             <tr>
               <td style={{ padding: '12px', fontWeight: 'bold' }}>MQ137 (Ammonia)</td><td>Analog (ADC)</td><td>Pin 34</td>

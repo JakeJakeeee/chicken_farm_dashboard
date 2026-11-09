@@ -4,13 +4,14 @@ import { DEFAULT_HOUSE_CONFIGS, createInactiveHouseData } from '../config/farmCo
 const NODE_RED_BASE_URL = `http://${window.location.hostname || 'localhost'}:1880`;
 const NODE_RED_HOUSES_URL = `${NODE_RED_BASE_URL}/api/houses`;
 
-// Default GPS & Blueprint coordinates for Farm 1, Farm 2, Farm 3, etc.
-const DEFAULT_LOCATIONS = [
-  { lat: 2.9927, lng: 101.7909, zone: 'North Sector A', x: 18, y: 28, capacity: '12,000 Birds' },
-  { lat: 2.9935, lng: 101.7921, zone: 'Central Sector B', x: 52, y: 28, capacity: '10,500 Birds' },
-  { lat: 2.9918, lng: 101.7932, zone: 'South Sector C', x: 35, y: 66, capacity: '15,000 Birds' },
-  { lat: 2.9942, lng: 101.7940, zone: 'East Sector D', x: 74, y: 62, capacity: '8,000 Birds' },
-  { lat: 2.9910, lng: 101.7898, zone: 'West Sector E', x: 16, y: 70, capacity: '10,000 Birds' }
+// Blueprint layout positions across the grid canvas
+const BLUEPRINT_SLOTS = [
+  { zone: 'Sector A', x: 25, y: 30 },
+  { zone: 'Sector B', x: 65, y: 25 },
+  { zone: 'Sector C', x: 40, y: 68 },
+  { zone: 'Sector D', x: 75, y: 70 },
+  { zone: 'Sector E', x: 18, y: 55 },
+  { zone: 'Sector F', x: 50, y: 50 }
 ];
 
 export default function FarmMap({ latestData = {}, onSelectHouse }) {
@@ -18,52 +19,23 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
     const saved = localStorage.getItem('farmHousesV1');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        // Ensure Farm 3 is visible if only 2 exist
-        if (Object.keys(parsed).length < 3 && !parsed.house3) {
-          parsed.house3 = {
-            id: 'house3',
-            name: 'House 3 - Breeders',
-            mqttTopic: 'yeaw_fyp_farm/node3/telemetry',
-            isLive: false
-          };
-        }
-        return parsed;
+        return JSON.parse(saved);
       } catch (e) {
         return DEFAULT_HOUSE_CONFIGS;
       }
     }
-    return {
-      ...DEFAULT_HOUSE_CONFIGS,
-      house3: {
-        id: 'house3',
-        name: 'House 3 - Breeders',
-        mqttTopic: 'yeaw_fyp_farm/node3/telemetry',
-        isLive: false
-      }
-    };
+    return DEFAULT_HOUSE_CONFIGS;
   });
 
   const [selectedId, setSelectedId] = useState('house1');
-  const [viewMode, setViewMode] = useState('blueprint'); // 'blueprint' | 'satellite'
 
-  // Sync latest house list from SQLite (/api/houses)
   useEffect(() => {
     fetch(NODE_RED_HOUSES_URL)
       .then((res) => (res.ok ? res.json() : null))
       .then((dbHouses) => {
         if (dbHouses && Object.keys(dbHouses).length > 0) {
-          const merged = { ...dbHouses };
-          // Automatically include House 3 if the user hasn't added it yet
-          if (Object.keys(merged).length < 3 && !merged.house3) {
-            merged.house3 = {
-              id: 'house3',
-              name: 'House 3 - Breeders',
-              mqttTopic: 'yeaw_fyp_farm/node3/telemetry',
-              isLive: false
-            };
-          }
-          setHouses(merged);
+          setHouses(dbHouses);
+          localStorage.setItem('farmHousesV1', JSON.stringify(dbHouses));
         }
       })
       .catch(() => {});
@@ -72,14 +44,14 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
   const houseList = useMemo(() => {
     const fallback = createInactiveHouseData();
     return Object.values(houses).map((h, idx) => {
-      const loc = DEFAULT_LOCATIONS[idx % DEFAULT_LOCATIONS.length];
+      const slot = BLUEPRINT_SLOTS[idx % BLUEPRINT_SLOTS.length];
       const telemetry = h.isLive ? latestData : fallback;
 
       const nh3 = Number(telemetry?.mq137_ammonia ?? 0);
       const co2 = Number(telemetry?.scd_co2 ?? 0);
       const temp = Number(telemetry?.sht_temperature ?? 0);
       const hum = Number(telemetry?.sht_humidity ?? 0);
-      const air = Number(telemetry?.fs_airflow ?? 0);
+      const air = Number(telemetry?.sn_airflow ?? 0);
 
       let healthStatus = 'INACTIVE';
       let statusColor = '#64748B';
@@ -104,12 +76,9 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
       return {
         ...h,
         index: idx + 1,
-        lat: loc.lat,
-        lng: loc.lng,
-        zone: loc.zone,
-        x: loc.x,
-        y: loc.y,
-        capacity: loc.capacity,
+        zone: slot.zone,
+        x: slot.x,
+        y: slot.y,
         nh3,
         co2,
         temp,
@@ -131,41 +100,26 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
       <div className="live-meta-line">
         <span className="live-blue-dot" style={{ backgroundColor: '#2563EB' }}></span>
         <span>
-          Multi-Farm GIS & Telemetry Map · {houseList.filter((h) => h.isLive).length} Active / {houseList.length} Total Registered Houses in SQLite
+          Multi-Farm System Interface · {houseList.filter((h) => h.isLive).length} Active / {houseList.length} Total Registered Houses in SQLite
         </span>
       </div>
 
       {/* Main Header */}
-      <div className="barn-header-row" style={{ marginBottom: '20px' }}>
+      <div className="barn-header-row" style={{ marginBottom: '16px' }}>
         <div className="barn-title-group">
-          <h1 className="barn-main-title">Poultry Farm Site Map</h1>
-        </div>
-
-        <div className="header-actions">
-          <div className="pill-group">
-            <button
-              className={`pill-tab-btn ${viewMode === 'blueprint' ? 'active' : ''}`}
-              onClick={() => setViewMode('blueprint')}
-            >
-              🗺️ Interactive Site Blueprint
-            </button>
-            <button
-              className={`pill-tab-btn ${viewMode === 'satellite' ? 'active' : ''}`}
-              onClick={() => setViewMode('satellite')}
-            >
-              🌍 GPS Street / Satellite Map
-            </button>
-          </div>
+          <h1 className="barn-main-title">Farm Houses System Overview</h1>
         </div>
       </div>
 
-      {/* Quick Summary Cards for Farm 1, Farm 2, Farm 3 */}
+      {/* SCROLLABLE HORIZONTAL BARN CARD STRIP */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          display: 'flex',
           gap: '16px',
-          marginBottom: '24px'
+          overflowX: 'auto',
+          paddingBottom: '12px',
+          marginBottom: '24px',
+          scrollbarWidth: 'thin'
         }}
       >
         {houseList.map((farm) => {
@@ -175,9 +129,11 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
               key={farm.id}
               onClick={() => setSelectedId(farm.id)}
               style={{
+                minWidth: '280px',
+                flex: '0 0 auto',
                 background: '#FFFFFF',
                 borderRadius: '16px',
-                padding: '18px',
+                padding: '16px',
                 cursor: 'pointer',
                 border: isSelected ? '2.5px solid #032B5E' : '1px solid #E2E8F0',
                 boxShadow: isSelected
@@ -186,15 +142,15 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
                 transition: 'all 0.2s ease'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
-                  FARM {farm.index} · {farm.zone}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                  HOUSE {farm.index} · {farm.zone}
                 </span>
                 <span
                   style={{
-                    fontSize: '0.72rem',
+                    fontSize: '0.7rem',
                     fontWeight: 700,
-                    padding: '3px 10px',
+                    padding: '2px 8px',
                     borderRadius: '999px',
                     backgroundColor: farm.statusBg,
                     color: farm.statusColor
@@ -204,11 +160,11 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
                 </span>
               </div>
 
-              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0F172A' }}>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: '#0F172A' }}>
                 {farm.name}
               </h3>
 
-              <div style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: '14px', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: '0.76rem', color: '#64748B', marginBottom: '12px', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 MQTT: {farm.mqttTopic}
               </div>
 
@@ -216,35 +172,35 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '8px',
+                  gap: '6px',
                   background: '#F8FAFC',
-                  padding: '10px',
+                  padding: '8px',
                   borderRadius: '10px',
                   textAlign: 'center'
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Temp</div>
-                  <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.9rem' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#64748B' }}>Temp</div>
+                  <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>
                     {farm.isLive ? `${farm.temp.toFixed(1)}°C` : '--'}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Humidity</div>
-                  <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.9rem' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#64748B' }}>Humidity</div>
+                  <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.85rem' }}>
                     {farm.isLive ? `${farm.hum.toFixed(0)}%` : '--'}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>NH3</div>
-                  <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.9rem' }}>
-                    {farm.isLive ? `${farm.nh3.toFixed(1)}ppm` : '--'}
+                  <div style={{ fontSize: '0.65rem', color: '#64748B' }}>NH3</div>
+                  <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.85rem' }}>
+                    {farm.isLive ? `${farm.nh3.toFixed(1)}p` : '--'}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>CO2</div>
-                  <div style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.9rem' }}>
-                    {farm.isLive ? `${farm.co2.toFixed(0)}ppm` : '--'}
+                  <div style={{ fontSize: '0.65rem', color: '#64748B' }}>CO2</div>
+                  <div style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.85rem' }}>
+                    {farm.isLive ? `${farm.co2.toFixed(0)}` : '--'}
                   </div>
                 </div>
               </div>
@@ -253,7 +209,7 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
         })}
       </div>
 
-      {/* MAP + INSPECTOR SPLIT VIEW */}
+      {/* MAP BACKGROUND CANVAS + INSPECTOR SPLIT VIEW */}
       <div
         style={{
           display: 'grid',
@@ -262,137 +218,133 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
           alignItems: 'start'
         }}
       >
-        {/* LEFT: MAP CANVAS */}
+        {/* LEFT: LIGHT GREEN GRID BLUEPRINT BACKGROUND */}
         <div
           style={{
             background: '#FFFFFF',
             borderRadius: '18px',
-            border: '1px solid #E2E8F0',
+            border: '1px solid #CBD5E1',
             overflow: 'hidden',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            boxShadow: '0 6px 16px rgba(0,0,0,0.06)'
           }}
         >
-          {viewMode === 'blueprint' ? (
-            /* 2D INTERACTIVE FARM COMPOUND BLUEPRINT */
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              height: '520px',
+              backgroundColor: '#D9F99D',
+              overflow: 'hidden'
+            }}
+          >
+            {/* SVG GRID AND ROAD PATTERN */}
+            <svg
+              width="100%"
+              height="100%"
+              style={{ position: 'absolute', inset: 0 }}
+              preserveAspectRatio="none"
+              viewBox="0 0 1000 600"
+            >
+              <defs>
+                <pattern id="gridPattern" width="50" height="50" patternUnits="userSpaceOnUse">
+                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#BEF264" strokeWidth="1.5" />
+                </pattern>
+              </defs>
+              <rect width="1000" height="600" fill="url(#gridPattern)" />
+
+              {/* Compound Access Roads with Dashed Center Markings */}
+              <path d="M 0 300 L 1000 300" stroke="#C5E1A5" strokeWidth="60" fill="none" />
+              <path d="M 0 300 L 1000 300" stroke="#9E9E9E" strokeWidth="4" strokeDasharray="16,12" fill="none" />
+
+              <path d="M 500 0 L 500 600" stroke="#C5E1A5" strokeWidth="50" fill="none" />
+              <path d="M 500 0 L 500 600" stroke="#9E9E9E" strokeWidth="4" strokeDasharray="16,12" fill="none" />
+            </svg>
+
+            {/* Top Badge */}
             <div
               style={{
-                position: 'relative',
-                width: '100%',
-                height: '480px',
-                background: 'linear-gradient(135deg, #ECFCCB 0%, #D9F99D 45%, #BEF264 100%)',
-                overflow: 'hidden'
+                position: 'absolute',
+                top: '14px',
+                left: '16px',
+                background: 'rgba(15, 23, 42, 0.88)',
+                color: '#FFF',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                zIndex: 2,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
               }}
             >
-              {/* Decorative Farm Roads & Perimeter Grid */}
-              <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, opacity: 0.45 }}>
-                <defs>
-                  <pattern id="farmGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#65A30D" strokeWidth="0.7" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#farmGrid)" />
-                {/* Main Access Road */}
-                <path d="M 0 240 L 900 240" stroke="#94A3B8" strokeWidth="28" strokeDasharray="12,8" />
-                <path d="M 420 0 L 420 500" stroke="#94A3B8" strokeWidth="22" />
-              </svg>
+              📐 Compound Blueprint Grid · Wildcard: `yeaw_fyp_farm/+/telemetry`
+            </div>
 
-              {/* Central Gateway Node Marker */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '14px',
-                  left: '16px',
-                  background: 'rgba(15, 23, 42, 0.85)',
-                  color: '#FFF',
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  zIndex: 2
-                }}
-              >
-                📡 Central EMQX & SQLite Server (`farm.db`) · Wildcard: `yeaw_fyp_farm/+/telemetry`
-              </div>
-
-              {/* Plot Farm 1, Farm 2, Farm 3 Nodes */}
-              {houseList.map((farm) => {
-                const isSelected = farm.id === activeFarm?.id;
-                return (
-                  <div
-                    key={farm.id}
-                    onClick={() => setSelectedId(farm.id)}
-                    style={{
-                      position: 'absolute',
-                      left: `${farm.x}%`,
-                      top: `${farm.y}%`,
-                      transform: 'translate(-50%, -50%)',
-                      background: '#FFFFFF',
-                      border: isSelected ? '3px solid #032B5E' : `2px solid ${farm.statusColor}`,
-                      borderRadius: '14px',
-                      padding: '12px 16px',
-                      minWidth: '210px',
-                      cursor: 'pointer',
-                      boxShadow: isSelected
-                        ? '0 14px 28px rgba(3, 43, 94, 0.28)'
-                        : '0 6px 16px rgba(0,0,0,0.12)',
-                      zIndex: isSelected ? 10 : 5,
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <strong style={{ fontSize: '0.92rem', color: '#0F172A' }}>
-                        🏠 {farm.name}
-                      </strong>
-                      <span
-                        style={{
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          backgroundColor: farm.statusColor,
-                          display: 'inline-block',
-                          boxShadow: farm.isLive ? `0 0 8px ${farm.statusColor}` : 'none'
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: '6px' }}>
-                      Node ID: <strong>{farm.mqttTopic.split('/')[1] || farm.id}</strong> · {farm.capacity}
-                    </div>
-
-                    {farm.isLive ? (
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.76rem', fontWeight: 700 }}>
-                        <span style={{ background: '#FEE2E2', color: '#B91C1C', padding: '2px 6px', borderRadius: '6px' }}>
-                          🌡️ {farm.temp.toFixed(1)}°C
-                        </span>
-                        <span style={{ background: '#DBEAFE', color: '#1D4ED8', padding: '2px 6px', borderRadius: '6px' }}>
-                          💧 {farm.hum.toFixed(0)}%
-                        </span>
-                        <span style={{ background: '#FEF3C7', color: '#B45309', padding: '2px 6px', borderRadius: '6px' }}>
-                          🧪 {farm.nh3.toFixed(1)}ppm
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontStyle: 'italic' }}>
-                        ⏸ Hardware Node Offline
-                      </div>
-                    )}
+            {/* Plot Registered Barn Houses as Interactive Nodes */}
+            {houseList.map((farm) => {
+              const isSelected = farm.id === activeFarm?.id;
+              return (
+                <div
+                  key={farm.id}
+                  onClick={() => setSelectedId(farm.id)}
+                  style={{
+                    position: 'absolute',
+                    left: `${farm.x}%`,
+                    top: `${farm.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    background: '#FFFFFF',
+                    border: isSelected ? '3px solid #032B5E' : `2px solid ${farm.statusColor}`,
+                    borderRadius: '14px',
+                    padding: '12px 16px',
+                    minWidth: '210px',
+                    cursor: 'pointer',
+                    boxShadow: isSelected
+                      ? '0 14px 28px rgba(3, 43, 94, 0.28)'
+                      : '0 6px 16px rgba(0,0,0,0.15)',
+                    zIndex: isSelected ? 10 : 5,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <strong style={{ fontSize: '0.92rem', color: '#0F172A' }}>
+                      🏠 {farm.name}
+                    </strong>
+                    <span
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        backgroundColor: farm.statusColor,
+                        display: 'inline-block',
+                        boxShadow: farm.isLive ? `0 0 8px ${farm.statusColor}` : 'none'
+                      }}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            /* REAL OPENSTREETMAP GPS EMBED FOR SELECTED FARM */
-            <div style={{ position: 'relative', width: '100%', height: '480px' }}>
-              <iframe
-                title="Farm GPS Location"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                loading="lazy"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${activeFarm.lng - 0.005}%2C${activeFarm.lat - 0.003}%2C${activeFarm.lng + 0.005}%2C${activeFarm.lat + 0.003}&layer=mapnik&marker=${activeFarm.lat}%2C${activeFarm.lng}`}
-              />
-            </div>
-          )}
+
+                  <div style={{ fontSize: '0.74rem', color: '#475569', marginBottom: '6px' }}>
+                    Node ID: <strong>{farm.mqttTopic.split('/')[1] || farm.id}</strong> · {farm.zone}
+                  </div>
+
+                  {farm.isLive ? (
+                    <div style={{ display: 'flex', gap: '6px', fontSize: '0.74rem', fontWeight: 700 }}>
+                      <span style={{ background: '#FEE2E2', color: '#B91C1C', padding: '2px 5px', borderRadius: '5px' }}>
+                        🌡️ {farm.temp.toFixed(1)}°C
+                      </span>
+                      <span style={{ background: '#DBEAFE', color: '#1D4ED8', padding: '2px 5px', borderRadius: '5px' }}>
+                        💧 {farm.hum.toFixed(0)}%
+                      </span>
+                      <span style={{ background: '#FEF3C7', color: '#B45309', padding: '2px 5px', borderRadius: '5px' }}>
+                        🧪 {farm.nh3.toFixed(1)}p
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.74rem', color: '#94A3B8', fontStyle: 'italic' }}>
+                      ⏸ Hardware Node Offline
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* RIGHT: SELECTED FARM TELEMETRY & SYSTEM INSPECTOR */}
@@ -428,7 +380,7 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
               {activeFarm.name}
             </h2>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.84rem', color: '#64748B' }}>
-              Zone: {activeFarm.zone} · GPS: {activeFarm.lat.toFixed(4)}° N, {activeFarm.lng.toFixed(4)}° E
+              Location: {activeFarm.zone}
             </p>
 
             <div
@@ -476,7 +428,7 @@ export default function FarmMap({ latestData = {}, onSelectHouse }) {
                 <strong>{activeFarm.isLive ? `${activeFarm.hum.toFixed(1)} %` : 'Offline'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', padding: '8px 12px', background: '#F8FAFC', borderRadius: '8px' }}>
-                <span>FS3000 Air Velocity</span>
+                <span>SN3000 Air Velocity</span>
                 <strong>{activeFarm.isLive ? `${activeFarm.air.toFixed(2)} m/s` : 'Offline'}</strong>
               </div>
             </div>

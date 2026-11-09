@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import Login from './login.jsx';
+
 import Sidebar from './components/Sidebar';
 import LiveDashboard from './pages/LiveDashboard';
 import Diagnostics from './pages/Diagnostics';
@@ -8,6 +10,19 @@ import FarmMap from './pages/FarmMap';
 import './app.css';
 
 function App() {
+  // 1. Load SQLite user session from localStorage
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('farmAuthUser');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [activeTab, setActiveTab] = useState('live');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -15,7 +30,27 @@ function App() {
   const [latestData, setLatestData] = useState(null);
   const [alerts, setAlerts] = useState([]);
 
+  // Clear button handler (wipes alerts_live table in SQLite)
+  const handleClearLiveAlerts = async () => {
+    try {
+      await fetch('http://localhost:1880/api/alerts/clear', { method: 'POST' });
+      setAlerts([]); // Immediately clear UI and Sidebar badge
+    } catch (err) {
+      console.error("Failed to clear live alerts:", err);
+    }
+  };
+
+  // 2. Logout handler passed to Sidebar
+  const handleLogout = () => {
+    localStorage.removeItem('farmAuthUser');
+    setUser(null);
+    setLatestData(null);
+  };
+
+  // 3. Poll Node-RED SQLite endpoints only when logged in
   useEffect(() => {
+    if (!user) return;
+
     let isMounted = true;
     let timerId;
 
@@ -26,7 +61,7 @@ function App() {
 
     const fetchDashboardData = async () => {
       try {
-        // 1. Fetch live reading from /api/live
+        // 1. Fetch live sensor reading from /api/live
         const liveRes = await fetch('http://localhost:1880/api/live');
         if (liveRes.ok) {
           const liveJson = await liveRes.json();
@@ -56,11 +91,12 @@ function App() {
           // Fallback to /api/live data if /api/history is not reachable
         }
 
-        // 3. Fetch alerts from /api/alerts
+        // 3. Fetch LIVE alerts from /api/alerts/live
         try {
-          const alertsRes = await fetch('http://localhost:1880/api/alerts');
+          const alertsRes = await fetch('http://localhost:1880/api/alerts/live');
           if (alertsRes.ok) {
-            const alertsData = await alertsRes.json();
+            const rawText = await alertsRes.text();
+            const alertsData = rawText.trim() ? JSON.parse(rawText) : [];
             if (Array.isArray(alertsData) && isMounted) {
               const formattedAlerts = alertsData.map(dbAlert => ({
                 id: dbAlert.id,
@@ -69,6 +105,8 @@ function App() {
                 time: dbAlert.timestamp_text
               }));
               setAlerts(formattedAlerts);
+            } else if (isMounted) {
+              setAlerts([]); // Empty when alerts_live table is cleared
             }
           }
         } catch (alertErr) {
@@ -89,7 +127,12 @@ function App() {
       isMounted = false;
       clearTimeout(timerId);
     };
-  }, []);
+  }, [user]);
+
+  // Show SQLite Login / Register screen if not logged in
+  if (!user) {
+    return <Login onLoginSuccess={(loggedInUser) => setUser(loggedInUser)} />;
+  }
 
   if (!latestData && activeTab === 'live') {
     return <div className="loading-screen">Waiting for Node-RED SQLite transmission...</div>;
@@ -100,6 +143,7 @@ function App() {
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        handleLogout={handleLogout}
         isOpen={isSidebarOpen}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         alertCount={alerts.length}
@@ -111,7 +155,6 @@ function App() {
           <FarmMap
             latestData={latestData}
             onSelectHouse={(houseId) => {
-              // Optional: if you want to store the selected house before switching tabs
               localStorage.setItem('selectedFarmHouseId', houseId);
               setActiveTab('live');
             }}
@@ -119,7 +162,7 @@ function App() {
         )}
         {activeTab === 'explorer' && <HistoryExplorer />}
         {activeTab === 'diagnostics' && <Diagnostics latestData={latestData} />}
-        {activeTab === 'alerts' && <Alerts alerts={alerts} />}
+        {activeTab === 'alerts' && <Alerts alerts={alerts} onClearAlerts={handleClearLiveAlerts} />}
       </div>
     </div>
   );
